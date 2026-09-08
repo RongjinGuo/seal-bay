@@ -12,3 +12,4 @@
 @media(max-width:760px){h1 br{display:block}.intro{padding-top:20px;padding-bottom:17px}.intro-copy{margin-bottom:6px}.mode{padding-top:7px;padding-bottom:10px}.mode small{font-size:8px}.mode>[data-icon] .icon{width:16px;height:16px}.feedback{min-width:260px}}
 
 @media(min-width:761px){.feeding-hud{left:38px;bottom:85px;transform:none;width:280px}.gesture-hint{color:#fdfbee;justify-content:flex-start;margin-left:18px}.power-control{margin-left:13px}.bucket-caption{margin-left:13px}}
+.seal-name{font-size:10px;letter-spacing:1px;color:#fdfbe9;text-shadow:0 1px 4px #254e47,0 0 9px #254e4755;opacity:.82;padding:2px 5px}

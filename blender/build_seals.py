@@ -47,14 +47,39 @@ attr = COAT.node_tree.nodes.new('ShaderNodeVertexColor')
 attr.layer_name = 'Coat'
 COAT.node_tree.links.new(attr.outputs['Color'], COAT.node_tree.nodes['Principled BSDF'].inputs['Base Color'])
 COAT.node_tree.nodes['Principled BSDF'].inputs['Subsurface Weight'].default_value = .035
-EYES = material('Deep brown wet eyes', (.016,.012,.008), .21)
-EYES.node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value = .16
-EYES.node_tree.nodes['Principled BSDF'].inputs['Coat Roughness'].default_value = .19
+EYES = material('Warm brown iris and soft corneal reflection', (1,1,1), .25)
+eye_bsdf=EYES.node_tree.nodes['Principled BSDF']
+eye_bsdf.inputs['Coat Weight'].default_value=.12
+eye_bsdf.inputs['Coat Roughness'].default_value=.22
+# A flat, feathered reflection remains readable when the game has no environment map.
+eye_size=256
+eye_x,eye_z=np.meshgrid(np.linspace(-1,1,eye_size),np.linspace(-1,1,eye_size))
+iris_radius=np.sqrt(eye_x**2+(eye_z*.86)**2)
+pupil_radius=np.sqrt((eye_x/.48)**2+(eye_z/.57)**2)
+angle=np.arctan2(eye_z*.86,eye_x)
+fibres=(np.sin(angle*79+iris_radius*13)+np.sin(angle*113-iris_radius*21))*.027
+iris_light=np.clip((.95-iris_radius)*2.5,0,1)*(.80-.20*eye_z)
+iris_rgb=np.array((.018,.010,.006))+iris_light[:,:,None]*np.array((.047,.024,.010))
+iris_rgb*=1+fibres[:,:,None]
+pupil_mix=np.clip((pupil_radius-.92)/.14,0,1)
+pupil_mix=pupil_mix*pupil_mix*(3-2*pupil_mix)
+eye_rgb=np.array((.0035,.0040,.0035))*(1-pupil_mix[:,:,None])+iris_rgb*pupil_mix[:,:,None]
+reflection=np.exp(-2.0*(((eye_x+.27)/.135)**2+((eye_z-.31)/.14)**2))
+eye_rgb=eye_rgb*(1-reflection[:,:,None]) + np.array((.57,.63,.60))*reflection[:,:,None]
+for label,rgb,socket in (
+    ('Brown iris pupil and soft reflection',eye_rgb,'Base Color'),
+    ('Restrained corneal catchlight',reflection[:,:,None]*np.array((.42,.48,.45)),'Emission Color'),
+):
+    # Generated color-image pixels use sRGB; keep the authored values scene-linear.
+    rgb=np.where(rgb<=.0031308,rgb*12.92,1.055*np.power(rgb,1/2.4)-.055)
+    rgba=np.ones((eye_size,eye_size,4),dtype=np.float32);rgba[:,:,:3]=rgb
+    eye_image=bpy.data.images.new(label,eye_size,eye_size,alpha=True)
+    eye_image.pixels.foreach_set(rgba.ravel());eye_image.pack()
+    tex=EYES.node_tree.nodes.new('ShaderNodeTexImage');tex.image=eye_image
+    EYES.node_tree.links.new(tex.outputs['Color'],eye_bsdf.inputs[socket])
+eye_bsdf.inputs['Emission Strength'].default_value=.22
 NOSE = material('Soft charcoal nose', (.031,.028,.023), .39)
 NOSTRIL = material('Nostrils and smile', (.007,.009,.009), .60)
-LIGHT = material('Eye catchlights', (.95,.99,1), .13)
-LIGHT.node_tree.nodes['Principled BSDF'].inputs['Emission Color'].default_value = (.7,.9,1,1)
-LIGHT.node_tree.nodes['Principled BSDF'].inputs['Emission Strength'].default_value = .22
 WHISKER = material('Ivory whiskers', (.48,.42,.31), .46)
 RIDGES = material('Flipper creases', (.14,.17,.15), .68)
 
@@ -307,7 +332,12 @@ def almond_eye(name, width, height, mat, parent, surface):
         for i in range(cols):
             a=j*cols+i;b=j*cols+(i+1)%cols
             faces.append((a,b,b+cols,a+cols))
-    return mesh(name,verts,faces,mat,parent)
+    obj=mesh(name,verts,faces,mat,parent)
+    uv=obj.data.uv_layers.new(name='UVMap')
+    for loop in obj.data.loops:
+        x,_,z=obj.data.vertices[loop.vertex_index].co
+        uv.data[loop.index].uv=(.5+x/(2*width),.5+(z-x*.065)/(2*height))
+    return obj
 
 def build(spec, index):
     collection=bpy.data.collections.new(spec['id'])
@@ -387,13 +417,15 @@ def build(spec, index):
         ex=side*hx*.51;ez=.435;ey=face_surface(ex,ez)+.004
         lid_color=(.105,.12,.105) if spec['pattern']=='harp' else tuple(x*.72 for x in spec['base'])
         eye=empty('Eye_'+('L' if side<0 else 'R'),head,(ex,ey,ez))
-        almond_eye('Wet almond eye',eyew,eyeh,EYES,eye,lambda x,z:face_surface(ex+x,ez+z)-ey)
+        # Leave the orbital sculpt and pivot intact while softening the eye proportions.
+        eye_width=eyew*.90;eye_height=eyeh*.94
+        almond_eye('Wet almond eye',eye_width,eye_height,EYES,eye,lambda x,z:face_surface(ex+x,ez+z)-ey)
         lidbits=[]
         for upper in (True,False):
             points=[]
             for j in range(13):
                 a=math.pi*j/12+(0 if upper else math.pi)
-                x=eyew*math.cos(a);z=eyeh*math.sin(a)*(.90+.10*abs(math.sin(a)))+x*.065
+                x=eye_width*math.cos(a);z=eye_height*math.sin(a)*(.90+.10*abs(math.sin(a)))+x*.065
                 points.append((ex+x,face_surface(ex+x,ez+z)-.001,ez+z))
             lid=tube('Upper soft eyelid' if upper else 'Lower tearline',points,.0045 if upper else .002,COAT if upper else NOSE,head,taper=0)
             if upper:

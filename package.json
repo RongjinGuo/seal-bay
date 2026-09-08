@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test:browser": "node tests/browser-game.mjs && node tests/browser-audio.mjs && node tests/browser-beach.mjs && node tests/browser-petting.mjs && node tests/browser-roaming.mjs"
+    "test:browser": "node tests/browser-game.mjs && node tests/browser-audio.mjs && node tests/browser-beach.mjs && node tests/browser-petting.mjs && node tests/browser-roaming.mjs && node tests/browser-speech.mjs"
   },
   "license": "ISC",
   "type": "module",

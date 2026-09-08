@@ -30,6 +30,11 @@ editable Blender scene and a family render in this directory.
   for blinking in the exported glTF, restoring the cached base scale afterward.
   The skull has shallow orbital recesses, and the thin corneal surfaces follow
   those recesses with a restrained highlight instead of projecting outward.
+  Shared 256-pixel textures provide a warm dark-brown iris, near-black pupil,
+  and a small feathered corneal catchlight that remains visible without an
+  environment map. The catchlight is part of the eye surface, so it follows
+  head motion and blinking without separate highlight geometry. The eye opening
+  is 10% narrower and 6% shorter than the original; every pivot is unchanged.
 - `Jaw` is a small lower-chin pivot for feeding animation.
 - `RearFlipper_L` and `RearFlipper_R` are separate paired hind flippers.
 - Cache node transforms immediately after loading. The meshes have local
@@ -72,7 +77,9 @@ The source includes the studio lighting, floor, and camera; these are excluded
 from the exported GLBs. Exported materials use standard glTF physical material
 properties, embedded 512-pixel coat and directional fur-normal textures, a
 shared 128-pixel facial detail normal, plus vertex colors on facial cushions
-and eyelids. Small low-contrast organic markings replace the broad painted
+and eyelids. The two shared eye textures add approximately 75 KB per GLB and
+use the existing eye material, preserving the material primitive count.
+Small low-contrast organic markings replace the broad painted
 spots, and the whitecoat pup has a warmer ivory coat. Static facial meshes
 are combined by material to keep the browser draw-call cost small.
 

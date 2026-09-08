@@ -7,6 +7,7 @@ import { GameAudio } from './audio.js';
 import { createBeachResidents } from './beach-residents.js';
 import { createPetting } from './petting.js';
 import { createRoamingFeedback } from './roaming-feedback.js';
+import { createSpeechState, advanceSpeech } from './speech-logic.js';
 import { createUI, readStored, storeValue } from './ui.js';
 import { computeThrow, trajectoryPoint, createVisitor, advanceVisitor, feedVisitor, findCatch, pickSpawn, STATE_DURATIONS } from './logic.js';
 
@@ -38,6 +39,7 @@ let lastThrowTime = -10;
 let gesture = null;
 let actors = [];
 let projectiles = [];
+let speech = createSpeechState();
 const origin = new THREE.Vector3(0, 1.65, 8);
 const projection = new THREE.Vector3();
 const ui = createUI({
@@ -100,7 +102,9 @@ function spawn(meta, position, demo = false) {
   if (demo) { visitor.state = 'waiting'; visitor.canCatch = true; }
   const label = document.createElement('div');
   label.className = 'seal-label';
-  label.innerHTML = '<span class="seal-bubble"></span><span class="patience"><i></i></span>';
+  label.dataset.visitorId = visitor.id;
+  label.innerHTML = '<span class="seal-name"></span><span class="seal-bubble" hidden></span><span class="patience"><i></i></span>';
+  label.querySelector('.seal-name').textContent = meta.name;
   document.getElementById('seal-labels').appendChild(label);
   const nodes = {};
   model.traverse(node => {
@@ -121,7 +125,7 @@ function spawn(meta, position, demo = false) {
   mouthFish.scale.setScalar(.7);
   root.add(mouthFish);
   mouthFish.position.set(0, 1.10, .75);
-  const actor = { visitor, root, model, meta, nodes, label, footprint, waterline, phase: Math.random() * Math.PI * 2, demo, lastState: '', mouthFish, secondCallPlayed: false };
+  const actor = { visitor, root, model, meta, nodes, label, footprint, waterline, phase: Math.random() * Math.PI * 2, demo, lastState: '', mouthFish, secondCallPlayed: false, nameTime: 3, labelVisible: false };
   actors.push(actor);
   if (!demo) effects.ripple(position.x, position.z, .7);
   return actor;
@@ -143,6 +147,7 @@ function clearGame() {
   petting?.stop();
   beachResidents?.stopRoaming();
   roamingFeedback?.reset();
+  speech = createSpeechState();
   actors.forEach(removeActor);
   actors = [];
   projectiles.forEach(item => { scene.remove(item.mesh); disposeFish(item.mesh); });
@@ -188,6 +193,8 @@ function goHome() {
 }
 function finish() {
   status = 'results';
+  speech = createSpeechState();
+  updateSpeech(0);
   cancelGesture();
   petting?.stop();
   beachResidents?.stopRoaming();
@@ -195,14 +202,17 @@ function finish() {
   audio.celebrate();
   ui.results({ score, throws: throwCount, bestCombo });
 }
-function stateText(actor) {
-  const { state } = actor.visitor;
-  if (actor.demo) return actor.meta.id === 'harp-pup' ? '今天的小鱼，会是我的嘛？' : actor.meta.name;
-  if (state === 'calling') return ['嗷呜～我的鱼呢？', '这里这里！肚子饿啦'][actor.visitor.id % 2];
-  if (state === 'angry') return '哼，要生气了！';
-  if (state === 'eating') return ['吧唧吧唧，好香！', '咬住！是我的啦'][actor.visitor.id % 2];
-  if (state === 'happy') return '还想再见到你 ♡';
-  return actor.meta.name;
+function updateSpeech(dt) {
+  const active = status === 'playing' ? advanceSpeech(speech, dt, actors.map(actor => ({
+    id: actor.visitor.id, state: actor.visitor.state, visible: actor.labelVisible && !actor.demo,
+  }))) : null;
+  for (const actor of actors) {
+    const speaking = active?.id === actor.visitor.id;
+    const bubble = actor.label.querySelector('.seal-bubble');
+    bubble.hidden = !speaking;
+    bubble.textContent = speaking ? active.text : '';
+    actor.label.querySelector('.seal-name').hidden = speaking || (!actor.demo && actor.nameTime <= 0) || status === 'results';
+  }
 }
 function applyRotation(actor, name, x = 0, y = 0, z = 0) {
   const part = actor.nodes[name];
@@ -287,18 +297,20 @@ function animateActor(actor, dt) {
   actor.waterline.scale.set(ringScale, ringScale * .86, 1);
   if (v.state !== actor.lastState) {
     actor.label.className = `seal-label ${v.state}`;
-    actor.label.querySelector('.seal-bubble').textContent = stateText(actor);
     actor.lastState = v.state;
     if (v.state === 'happy') {
       effects.hearts(root.position.clone().add(new THREE.Vector3(0, v.size * 1.8, 0)));
       audio.celebrate();
     }
   }
-  actor.label.style.opacity = (v.state === 'diving' || v.state === 'gone' || y < -.7) ? '0' : '1';
   const patience = actor.demo || v.fed ? 1 : v.state === 'waiting' ? 1 - p / v.patience : v.state === 'calling' ? .2 * (1 - p / 4) : 0;
   actor.label.querySelector('.patience').style.display = actor.demo || v.fed ? 'none' : '';
   actor.label.querySelector('.patience i').style.width = `${Math.max(0, patience) * 100}%`;
   projection.set(v.x, root.position.y + v.size * 2.12, v.z).project(camera);
+  actor.labelVisible = v.state !== 'diving' && v.state !== 'gone' && y >= -.7
+    && Math.abs(projection.x) < 1 && Math.abs(projection.y) < 1 && Math.abs(projection.z) < 1;
+  actor.label.style.opacity = actor.labelVisible ? '1' : '0';
+  if (!actor.demo && actor.labelVisible) actor.nameTime = Math.max(0, actor.nameTime - dt);
   actor.label.style.transform = `translate(${(projection.x * .5 + .5) * innerWidth}px,${(-projection.y * .5 + .5) * innerHeight}px) translate(-50%, -100%)`;
 }
 function sample(event) { return { x: event.clientX, y: event.clientY, t: event.timeStamp }; }
@@ -440,6 +452,7 @@ function frame(now) {
     actors.forEach(actor => animateActor(actor, activeDt));
     if (status === 'playing') updateProjectiles(activeDt);
     for (let i = actors.length - 1; i >= 0; i--) if (actors[i].visitor.state === 'gone') { removeActor(actors[i]); actors.splice(i, 1); }
+    updateSpeech(activeDt);
     effects.update(dt, camera);
     if (status === 'playing') {
       hudTick += dt;
@@ -453,14 +466,16 @@ requestAnimationFrame(frame);
 
 async function load() {
   try {
-    const response = await fetch(`${import.meta.env.BASE_URL}models/manifest.json`);
+    // Pages caches public files; a model revision refreshes returning players' eyes and portraits.
+    const modelUrl = path => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}?v=natural-eyes-1`;
+    const response = await fetch(modelUrl('models/manifest.json'));
     if (!response.ok) throw new Error(`Model manifest: ${response.status}`);
     const data = await response.json();
-    manifest = data.seals.map(meta => ({ ...meta, portrait: `${import.meta.env.BASE_URL}${meta.portrait.replace(/^\//, '')}` }));
+    manifest = data.seals.map(meta => ({ ...meta, portrait: modelUrl(meta.portrait) }));
     const loader = new GLTFLoader();
     let loaded = 0;
     await Promise.all(manifest.map(async meta => {
-      const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}${meta.file.replace(/^\//, '')}`);
+      const gltf = await loader.loadAsync(modelUrl(meta.file));
       models.set(meta.id, gltf.scene);
       ui.progress(++loaded, manifest.length);
     }));
@@ -488,5 +503,5 @@ load();
 
 // A read-only snapshot supports browser verification without bypassing real input.
 window.__sealBay = Object.freeze({
-  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: models.size, audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, beachSeals: beachResidents?.snapshot() || [], roaming: beachResidents?.roamingSnapshot() || null, petting: petting?.snapshot() || null, activeHearts: effects.items.filter(item => item.type === 'heart' && item.mesh.visible).length, seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
+  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: models.size, audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, speech: { ...speech, active: speech.active ? { ...speech.active } : null, spokenIds: [...speech.spokenIds] }, beachSeals: beachResidents?.snapshot() || [], roaming: beachResidents?.roamingSnapshot() || null, petting: petting?.snapshot() || null, activeHearts: effects.items.filter(item => item.type === 'heart' && item.mesh.visible).length, seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
 });

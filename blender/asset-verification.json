@@ -1,7 +1,7 @@
 [
   {
     "id": "harbor-pup",
-    "bytes": 2091416,
+    "bytes": 2166948,
     "drawCalls": 17,
     "bounds": {
       "min": [
@@ -26,11 +26,11 @@
       "RearFlipper_L",
       "RearFlipper_R"
     ],
-    "embeddedTextures": 3
+    "embeddedTextures": 5
   },
   {
     "id": "harbor-adult",
-    "bytes": 2060000,
+    "bytes": 2135528,
     "drawCalls": 17,
     "bounds": {
       "min": [
@@ -55,11 +55,11 @@
       "RearFlipper_L",
       "RearFlipper_R"
     ],
-    "embeddedTextures": 3
+    "embeddedTextures": 5
   },
   {
     "id": "harp-pup",
-    "bytes": 2074436,
+    "bytes": 2149964,
     "drawCalls": 17,
     "bounds": {
       "min": [
@@ -84,11 +84,11 @@
       "RearFlipper_L",
       "RearFlipper_R"
     ],
-    "embeddedTextures": 3
+    "embeddedTextures": 5
   },
   {
     "id": "harp-adult",
-    "bytes": 2038700,
+    "bytes": 2114236,
     "drawCalls": 16,
     "bounds": {
       "min": [
@@ -113,11 +113,11 @@
       "RearFlipper_L",
       "RearFlipper_R"
     ],
-    "embeddedTextures": 3
+    "embeddedTextures": 5
   },
   {
     "id": "grey-juvenile",
-    "bytes": 2163800,
+    "bytes": 2239336,
     "drawCalls": 17,
     "bounds": {
       "min": [
@@ -142,11 +142,11 @@
       "RearFlipper_L",
       "RearFlipper_R"
     ],
-    "embeddedTextures": 3
+    "embeddedTextures": 5
   },
   {
     "id": "grey-adult",
-    "bytes": 2151288,
+    "bytes": 2226820,
     "drawCalls": 17,
     "bounds": {
       "min": [
@@ -171,11 +171,11 @@
       "RearFlipper_L",
       "RearFlipper_R"
     ],
-    "embeddedTextures": 3
+    "embeddedTextures": 5
   },
   {
     "id": "ringed-adult",
-    "bytes": 2098580,
+    "bytes": 2174108,
     "drawCalls": 17,
     "bounds": {
       "min": [
@@ -200,11 +200,11 @@
       "RearFlipper_L",
       "RearFlipper_R"
     ],
-    "embeddedTextures": 3
+    "embeddedTextures": 5
   },
   {
     "id": "weddell-elder",
-    "bytes": 2240428,
+    "bytes": 2315964,
     "drawCalls": 17,
     "bounds": {
       "min": [
@@ -229,6 +229,6 @@
       "RearFlipper_L",
       "RearFlipper_R"
     ],
-    "embeddedTextures": 3
+    "embeddedTextures": 5
   }
 ]

@@ -42,6 +42,17 @@ async function waitForEligibility(page) {
   });
 }
 
+async function startAndSnapshot(page, selector, mobile) {
+  // Inspect the reset after two frames, independent of input/render latency, then restore real time.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 50);
+  await page.locator(selector)[mobile ? 'tap' : 'click']({ force: true });
+  await page.clock.runFor(32);
+  await waitForEligibility(page);
+  const state = await snapshot(page);
+  await page.clock.resume();
+  return state;
+}
+
 function assertContinuous(previous, current, id) {
   const before = resident(previous, id), after = resident(current, id);
   const dt = current.roaming.elapsed - previous.roaming.elapsed;
@@ -157,9 +168,7 @@ async function laterTrip(page, firstTrip) {
 
 async function lifecycleChecks(page, mobile, initialRoster) {
   await page.locator('#pause-button')[mobile ? 'tap' : 'click']();
-  await page.locator('#restart-button')[mobile ? 'tap' : 'click']();
-  await waitForEligibility(page);
-  const restarted = await snapshot(page);
+  const restarted = await startAndSnapshot(page, '#restart-button', mobile);
   assertInitial(restarted);
   assert.deepEqual(roster(restarted), initialRoster, 'Restart preserves one instance of every resident');
   assert.equal(restarted.roaming.history.length, 0, 'Restart clears old trip events');
@@ -174,9 +183,7 @@ async function lifecycleChecks(page, mobile, initialRoster) {
   assert.equal(await page.locator('#roaming-label').isVisible(), false);
   await page.waitForTimeout(400);
   assert.deepEqual((await snapshot(page)).roaming, home.roaming, 'The home screen cannot keep the travel schedule running');
-  await page.locator('#start-button')[mobile ? 'tap' : 'click']();
-  await waitForEligibility(page);
-  assertInitial(await snapshot(page));
+  assertInitial(await startAndSnapshot(page, '#start-button', mobile));
 }
 
 try {
@@ -191,9 +198,7 @@ try {
       await page.waitForFunction(() => window.__sealBay?.snapshot().loaded === 8);
       assert.ok((await snapshot(page)).roaming, 'The real game exposes a read-only roaming snapshot');
       await page.evaluate(() => document.fonts.ready);
-      await page.locator('#start-button')[mobile ? 'tap' : 'click']();
-      await waitForEligibility(page);
-      const initial = await snapshot(page);
+      const initial = await startAndSnapshot(page, '#start-button', mobile);
       assertInitial(initial);
       await page.waitForFunction(() => window.__sealBay.snapshot().roaming.activeId !== null);
       await waitForEligibility(page);
