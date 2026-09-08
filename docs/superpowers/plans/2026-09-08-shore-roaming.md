@@ -14,7 +14,7 @@
 - [x] Extend `src/beach-residents.js` with habitat state, continuous travel and swimming poses, supported shoreline transitions, events, reset and petting eligibility; verify geometry and model-resource preservation.
 - [x] Connect start, pause, restart, home and results in `src/main.js`; add traveler labels and wake/splash effects without affecting feeding gestures or scoring.
 - [x] Exercise natural first departures, both journey directions, continuity, pause, petting eligibility and layout in desktop and mobile browsers. Re-run feeding, audio, beach and petting checks.
-- [ ] Update the in-game guide and README; publish the verified game to GitHub Pages and verify the live journey.
+- [x] Update the in-game guide and README; publish the verified game to GitHub Pages and verify the live journey.
 
 ## Acceptance
 
@@ -28,3 +28,11 @@ The first journey begins between twelve and eighteen active seconds on desktop a
 - Natural first departures and complete incoming journeys pass on desktop and phone; the later reverse journey retains forty-two to fifty-eight second departure spacing.
 - Compact portrait and landscape traveler labels remain onscreen and avoid header controls.
 - Models and the selected seal-call recording are unchanged.
+
+## Release Verification
+
+- Implementation commit: `d01405b`.
+- GitHub Pages deployment succeeded in workflow run `34236870064`.
+- The published page serves `index-DKOkKcxj.js` and `index-DOtynC4J.css`, matching the tested local production build.
+- The complete roaming browser suite passes on `https://rongjinguo.github.io/seal-bay/`: natural first journeys on desktop and phone, later beach-to-water travel, long intervals, continuity, pause/resume, petting eligibility, restart and home cleanup.
+- The existing local game preview is refreshed and ready.
