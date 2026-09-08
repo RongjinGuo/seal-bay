@@ -17,7 +17,7 @@ Improve the existing soft natural style with a more continuous neck and body sil
 - [x] Implement `src/beach.js` for sand geometry, a shared surface height function, shoreline foam, and restrained beach details. Integrate with `src/world.js` and `src/main.js`.
 - [x] Inspect desktop and phone views; tune beach placement and prone poses so residents read clearly and do not obscure reachable feeding lanes.
 - [x] Run unit tests, production build, existing browser feeding/audio tests, and new beach browser checks. Review changes and verify the exact audio is unchanged.
-- [ ] Update project documentation, commit the verified result, publish through the existing Pages workflow, and verify the live game.
+- [x] Update project documentation, commit the verified result, publish through the existing Pages workflow, and verify the live game.
 
 ## Acceptance Checks
 
@@ -28,3 +28,5 @@ The user's follow-up identifies protruding eyes in the preview. Recess the socke
 ## Verified Result
 
 All 31 unit tests and the production browser game, audio, and beach checks pass. Desktop and phone screenshots confirm the five sand residents remain visible. A 90-frame phone-layout sample on the development host has 16.7 ms median and 90th-percentile frame intervals; this is a local browser measurement, not a physical-phone benchmark. The final eyes use recessed sockets and softer reflections. The selected audio retains SHA-256 `68a48bffd0d8c0fe0f71ad06ba8775500a82f7976c19e437340ab85dd8d2863a`.
+
+Published implementation commit `528a9a2` through successful Pages run `34228014188`. The public homepage script, all eight GLBs, and the selected recording match the final local build by SHA-256. The live desktop and phone beach checks pass with no browser errors.
