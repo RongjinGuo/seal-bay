@@ -12,7 +12,7 @@
 - [x] Extend `src/beach-residents.js` with world-space interaction anchors and petting/happy poses; test independent animation, pause and reset.
 - [x] Build `src/petting.js` and `src/petting.css` for the responsive tool tray, projected requests, pointer capture, hit testing, and stroke feedback. Connect lifecycle and heart effects in `src/main.js`.
 - [x] Verify real desktop and mobile tool dragging, wrong targets/tools, no accidental fish throws, pause during drag/stroke, request visibility and restart cleanup. Re-run existing feeding/audio/beach checks.
-- [ ] Update the game guide and README, publish the tested build to GitHub Pages, and verify the live petting interaction.
+- [x] Update the game guide and README, publish the tested build to GitHub Pages, and verify the live petting interaction.
 
 ## Acceptance
 
@@ -25,3 +25,11 @@ Tools and requests remain readable at 1440 × 900 and 390 × 844. Success requir
 - Feeding, audio, beach and petting browser suites pass with no console or page errors.
 - Petting covers real desktop mouse, 390 x 844 touch input, 844 x 390 landscape and 320 x 568 compact-screen requests.
 - The selected seal call remains byte-for-byte unchanged.
+
+## Release Verification
+
+- Implementation commit: `95feb1c`.
+- GitHub Pages deployment succeeded in workflow run `34230899876`.
+- The published page serves `index-CdfZQ2g9.js` and `index-B2RRGAOd.css`, matching the local production build.
+- The complete petting browser suite passes on `https://rongjinguo.github.io/seal-bay/`, including both tools, real touch input, mouse input, delayed hearts, pause/restart, landscape and compact-screen layout.
+- The existing local preview is refreshed and ready to play.
