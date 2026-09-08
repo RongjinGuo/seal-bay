@@ -36,13 +36,13 @@ export class Effects {
       this.items.push({ type: 'drop', mesh: drop, age: 0, life: .65 + Math.random() * .3, velocity: new THREE.Vector3(Math.cos(angle) * speed, 1.7 + Math.random() * 2.4, Math.sin(angle) * speed) });
     }
   }
-  hearts(position) {
+  hearts(position, size = 1) {
     for (let i = 0; i < 4; i++) {
       const heart = new THREE.Mesh(this.heartGeometry, new THREE.MeshBasicMaterial({ color: coral, side: THREE.DoubleSide, transparent: true, depthWrite: false }));
       heart.position.copy(position);
       heart.position.x += (Math.random() - .5) * .8;
       heart.position.y += .35 + Math.random() * .5;
-      heart.scale.setScalar(.27 + Math.random() * .12);
+      heart.scale.setScalar((.27 + Math.random() * .12) * size);
       this.scene.add(heart);
       this.items.push({ type: 'heart', mesh: heart, age: -i * .14, life: 1.9, phase: i * 2 });
     }

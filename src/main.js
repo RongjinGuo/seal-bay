@@ -5,6 +5,7 @@ import { createWorld, createFish } from './world.js';
 import { Effects } from './effects.js';
 import { GameAudio } from './audio.js';
 import { createBeachResidents } from './beach-residents.js';
+import { createPetting } from './petting.js';
 import { createUI, readStored, storeValue } from './ui.js';
 import { computeThrow, trajectoryPoint, createVisitor, advanceVisitor, feedVisitor, findCatch, pickSpawn, STATE_DURATIONS } from './logic.js';
 
@@ -18,6 +19,7 @@ let muted = readStored('muted', false);
 audio.setMuted(muted);
 const models = new Map();
 let beachResidents;
+let petting;
 let manifest = [];
 let mode = 'relax';
 let status = 'intro';
@@ -49,6 +51,7 @@ const ui = createUI({
   },
   onModal: (open, kind) => {
     cancelGesture();
+    petting?.setPaused(open);
     if (open) { paused = true; audio.setPaused(status !== 'results'); }
     else {
       paused = false;
@@ -134,6 +137,7 @@ function disposeFish(fish) {
 }
 function clearGame() {
   cancelGesture();
+  petting?.stop();
   actors.forEach(removeActor);
   actors = [];
   projectiles.forEach(item => { scene.remove(item.mesh); disposeFish(item.mesh); });
@@ -157,6 +161,7 @@ async function startGame(selectedMode = mode) {
   elapsed = 0; spawnTime = 2.4; score = 0; throwCount = 0; combo = 0; bestCombo = 0; lastThrowTime = -10;
   ui.setPlaying(true, mode);
   ui.stats(0, mode === 'challenge' ? 120 : 0, 0);
+  petting?.start();
   audio.setPaused(false);
   const soundReady = audio.unlock();
   ui.sound(!muted);
@@ -178,6 +183,7 @@ function goHome() {
 function finish() {
   status = 'results';
   cancelGesture();
+  petting?.stop();
   audio.celebrate();
   ui.results({ score, throws: throwCount, bestCombo });
 }
@@ -310,7 +316,8 @@ function cancelGesture() {
   if (typeof ui !== 'undefined') ui.power(0, false);
 }
 renderer.domElement.addEventListener('pointerdown', event => {
-  if (status !== 'playing' || paused || event.button !== 0 || gesture) return;
+  if (status !== 'playing' || paused || event.button !== 0 || gesture || petting?.dragging) return;
+  if (petting?.isOverResident(event.clientX, event.clientY)) return;
   if (event.clientY < innerHeight * .4) { ui.notice('从画面下半部开始，朝海豹向上划'); return; }
   event.preventDefault();
   gesture = { id: event.pointerId, samples: [sample(event)] };
@@ -382,7 +389,7 @@ function updateProjectiles(dt) {
     projectiles.splice(i, 1);
   }
 }
-window.addEventListener('resize', () => { cancelGesture(); const previous = world.isPortrait; world.resize(); if (status === 'intro' && previous !== world.isPortrait) demoBay(); });
+window.addEventListener('resize', () => { cancelGesture(); petting?.cancelDrag(); const previous = world.isPortrait; world.resize(); if (status === 'intro' && previous !== world.isPortrait) demoBay(); });
 window.addEventListener('keydown', event => {
   if (event.code === 'KeyM' && !event.repeat) { document.getElementById('sound-button').click(); return; }
   if ((event.code === 'Space' || event.code === 'Escape') && status === 'playing' && !ui.modalOpen && !event.repeat) {
@@ -400,6 +407,7 @@ function frame(now) {
   previousTime = now;
   const dt = paused ? 0 : realDt;
   worldTime += dt;
+  petting?.update(dt);
   if (!paused) {
     world.update(worldTime);
     beachResidents?.update(worldTime);
@@ -447,6 +455,15 @@ async function load() {
     ui.setModels(manifest);
     beachResidents = createBeachResidents({ scene, models, surfaceHeight: world.beach.heightAt });
     beachResidents.update(worldTime);
+    petting = createPetting({
+      residents: beachResidents, camera, container, manifest,
+      onBeginDrag: cancelGesture,
+      onUnlock: () => audio.unlock(),
+      onComplete: ({ position }) => {
+        effects.hearts(position.add(new THREE.Vector3(0, .3, 0)), 2.4);
+        audio.celebrate();
+      },
+    });
     demoBay();
     ui.ready();
   } catch (error) {
@@ -458,5 +475,5 @@ load();
 
 // A read-only snapshot supports browser verification without bypassing real input.
 window.__sealBay = Object.freeze({
-  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: models.size, audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, beachSeals: beachResidents?.snapshot() || [], seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
+  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: models.size, audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, beachSeals: beachResidents?.snapshot() || [], petting: petting?.snapshot() || null, activeHearts: effects.items.filter(item => item.type === 'heart' && item.mesh.visible).length, seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
 });

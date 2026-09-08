@@ -200,3 +200,165 @@ test('snapshots cannot mutate resident state and disposing preserves shared reso
   assert.deepEqual(scene.children, [existing]);
   assert.equal(sharedDisposals, 0);
 });
+
+test('interaction targets follow current body and head transforms and return independent world points', () => {
+  const { residents, scene } = fixture();
+  residents.update(13);
+  scene.position.set(2, .5, -1);
+  scene.rotation.y = .2;
+  scene.scale.setScalar(1.1);
+  const targets = residents.interactionTargets();
+  assert.deepEqual(targets.map(target => target.id), residents.snapshot().map(seal => seal.id));
+  for (const target of targets) {
+    const root = scene.getObjectByName(target.id);
+    const body = root.getObjectByName('Plump seamless body');
+    const head = root.getObjectByName('Head');
+    assert.equal(target.variant, residents.snapshot().find(seal => seal.id === target.id).variant);
+    assert.ok(target.position instanceof THREE.Vector3 && target.headPosition instanceof THREE.Vector3);
+    near(target.position.distanceTo(body.getWorldPosition(new THREE.Vector3())), 0);
+    near(target.headPosition.distanceTo(head.getWorldPosition(new THREE.Vector3())), 0);
+    near(target.radius, root.getWorldScale(new THREE.Vector3()).x * 1.15);
+    assert.ok(target.radius > 1);
+  }
+  const original = targets[0].position.clone();
+  targets[0].position.set(999, 999, 999);
+  near(residents.interactionTargets()[0].position.distanceTo(original), 0);
+  residents.dispose();
+  assert.deepEqual(residents.interactionTargets(), []);
+});
+
+test('missing models never produce interaction targets or accept a care state', () => {
+  const residents = createBeachResidents({ scene: new THREE.Scene(), models: new Map(), surfaceHeight: () => 0 });
+  residents.setPettingState({ id: 'beach-resident-1', phase: 'petting', progress: .5 });
+  residents.update(3);
+  assert.deepEqual(residents.interactionTargets(), []);
+  assert.deepEqual(residents.snapshot(), []);
+  residents.dispose();
+});
+
+test('care changes only the selected resident and clears back to the ordinary resting pose', () => {
+  const { residents, scene, models } = fixture();
+  residents.update(8);
+  const seals = residents.snapshot();
+  const selected = seals.find(seal => seal.behavior === 'resting');
+  const baseline = new Map(seals.map(seal => [seal.id, transforms(scene.getObjectByName(seal.id))]));
+  const templates = new Map([...models].map(([variant, model]) => [variant, transforms(model)]));
+  for (const phase of ['requesting', 'petting', 'happy']) {
+    residents.setPettingState({ id: selected.id, phase, progress: .5 });
+    residents.update(8);
+    assert.equal(residents.snapshot().find(seal => seal.id === selected.id).carePhase, phase);
+    assert.notDeepEqual(transforms(scene.getObjectByName(selected.id)), baseline.get(selected.id));
+    for (const other of seals.filter(seal => seal.id !== selected.id)) {
+      assert.deepEqual(transforms(scene.getObjectByName(other.id)), baseline.get(other.id));
+      assert.equal(residents.snapshot().find(seal => seal.id === other.id).carePhase, null);
+    }
+  }
+  residents.setPettingState(null);
+  residents.update(8);
+  for (const seal of seals) assert.deepEqual(transforms(scene.getObjectByName(seal.id)), baseline.get(seal.id));
+  for (const [variant, model] of models) {
+    assert.deepEqual(transforms(model), templates.get(variant));
+    assert.equal(model.getObjectByName('Plump seamless body').geometry.boundingBox, null);
+  }
+  residents.dispose();
+});
+
+test('petting and happy poses visibly soften the eyes and move the head while repeated frames stay frozen', () => {
+  const { residents, scene } = fixture();
+  residents.update(4);
+  const selected = residents.snapshot()[0];
+  const root = scene.getObjectByName(selected.id);
+  const openEye = root.getObjectByName('Eye_L').scale.y;
+  const ordinaryHead = root.getObjectByName('Head').quaternion.clone();
+  for (const phase of ['petting', 'happy']) {
+    residents.setPettingState({ id: selected.id, phase, progress: .4 });
+    residents.update(4);
+    assert.ok(root.getObjectByName('Eye_L').scale.y < openEye * .5);
+    assert.ok(root.getObjectByName('Head').quaternion.angleTo(ordinaryHead) > .03);
+    const held = transforms(scene);
+    for (let frame = 0; frame < 10; frame += 1) {
+      residents.setPettingState({ id: selected.id, phase, progress: .4 });
+      residents.update(4);
+    }
+    assert.deepEqual(transforms(scene), held);
+  }
+  residents.dispose();
+});
+
+test('care state validates IDs and phases and only one resident can receive care', () => {
+  const { residents } = fixture();
+  const [first, second] = residents.snapshot();
+  residents.setPettingState({ id: first.id, phase: 'petting', progress: .5 });
+  residents.setPettingState({ id: second.id, phase: 'happy', progress: .5 });
+  residents.update(0);
+  assert.deepEqual(residents.snapshot().filter(seal => seal.carePhase).map(seal => seal.id), [second.id]);
+  for (const state of [
+    { id: 'unknown', phase: 'petting', progress: .5 },
+    { id: first.id, phase: 'unknown', progress: .5 },
+    null,
+  ]) {
+    residents.setPettingState(state);
+    residents.update(0);
+    assert.ok(residents.snapshot().every(seal => seal.carePhase === null));
+  }
+  residents.dispose();
+  residents.setPettingState({ id: first.id, phase: 'happy', progress: 1 });
+  residents.update(10);
+  assert.deepEqual(residents.snapshot(), []);
+});
+
+test('a crawling resident stays in place during care and resumes without a catch-up jump', () => {
+  const { residents, scene } = fixture();
+  residents.update(5);
+  const crawling = residents.snapshot().find(seal => seal.behavior === 'crawling');
+  const root = scene.getObjectByName(crawling.id);
+  const yaw = root.rotation.y;
+  residents.setPettingState({ id: crawling.id, phase: 'petting', progress: 0 });
+  for (const time of [5, 6, 7, 9]) {
+    residents.setPettingState({ id: crawling.id, phase: time > 6 ? 'happy' : 'petting', progress: .5 });
+    residents.update(time);
+    near(root.position.x, crawling.x);
+    near(root.position.z, crawling.z);
+    near(root.rotation.y, yaw);
+  }
+  residents.setPettingState(null);
+  residents.update(9);
+  near(root.position.x, crawling.x);
+  near(root.position.z, crawling.z);
+  near(root.rotation.y, yaw);
+  residents.update(9.016);
+  assert.ok(Math.hypot(root.position.x - crawling.x, root.position.z - crawling.z) < .002);
+  residents.update(12);
+  assert.ok(Math.hypot(root.position.x - crawling.x, root.position.z - crawling.z) > .05);
+  residents.update(0);
+  const fresh = fixture();
+  assert.deepEqual(residents.snapshot(), fresh.residents.snapshot());
+  fresh.residents.dispose();
+  residents.dispose();
+});
+
+test('care poses keep both the torso and low neck clear of sloped sand', () => {
+  const { residents, scene, surfaceHeight } = fixture({ lowNeck: true });
+  const vertex = new THREE.Vector3();
+  for (const seal of residents.snapshot()) {
+    for (const phase of ['requesting', 'petting', 'happy']) {
+      residents.setPettingState({ id: seal.id, phase, progress: .6 });
+      residents.update(10);
+      const root = scene.getObjectByName(seal.id);
+      for (const name of ['Plump seamless body', 'Head']) {
+        let clearance = Infinity;
+        root.getObjectByName(name).traverse(node => {
+          if (!node.isMesh) return;
+          const vertices = node.geometry.getAttribute('position');
+          for (let index = 0; index < vertices.count; index += 1) {
+            vertex.fromBufferAttribute(vertices, index).applyMatrix4(node.matrixWorld);
+            clearance = Math.min(clearance, vertex.y - surfaceHeight(vertex.x, vertex.z));
+          }
+        });
+        assert.ok(clearance >= .0119, `${seal.variant} ${phase} ${name}: ${clearance}`);
+        if (name === 'Plump seamless body') near(clearance, .012);
+      }
+    }
+  }
+  residents.dispose();
+});
