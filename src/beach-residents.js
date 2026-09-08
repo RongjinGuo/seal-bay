@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { shorelineZ } from './beach.js';
+import { ROAMING_TIMING, createRoamingSchedule, advanceRoamingSchedule } from './roaming-logic.js';
 
 const RESIDENTS = [
   { variant: 'harp-pup', behavior: 'resting', x: -4, z: -18, yaw: -.48, scale: 1.48, roll: -.26, phase: .7 },
@@ -14,6 +16,51 @@ const rotation = new THREE.Quaternion();
 const inverseParent = new THREE.Matrix4();
 const CONTACT_JOINTS = ['Head', 'Flipper_L', 'Flipper_R', 'RearFlipper_L', 'RearFlipper_R'];
 const CARE_PHASES = new Set(['requesting', 'petting', 'happy']);
+const unit = value => THREE.MathUtils.clamp(value, 0, 1);
+const turnToward = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
+
+function beachPlacement(config, time) {
+  const motion = config.behavior === 'crawling' ? crawlAt(time, config.phase) : { distance: 0, yaw: 0, effort: 0 };
+  return { x: config.x + Math.sin(config.yaw) * motion.distance, z: config.z + Math.cos(config.yaw) * motion.distance, yaw: config.yaw + motion.yaw, effort: motion.effort, motionTime: time, swimming: 0 };
+}
+
+function waterPlacement(config, time) {
+  const wave = time * .25;
+  return { x: config.x + .24 * Math.sin(wave), z: -10.95 + .12 * (Math.sin(wave + .6) - Math.sin(.6)), yaw: config.yaw + .14 * Math.sin(wave), effort: 0, motionTime: time, swimming: 1 };
+}
+
+function travelPlacement(trip, progress) {
+  const amount = smooth(unit((progress - .14) / .72));
+  const settling = smooth(unit((progress - .86) / .14));
+  const x = THREE.MathUtils.lerp(trip.from.x, trip.to.x, amount);
+  const z = THREE.MathUtils.lerp(trip.from.z, trip.to.z, amount);
+  const heading = Math.atan2(trip.to.x - trip.from.x, trip.to.z - trip.from.z);
+  const departureTurn = turnToward(trip.from.yaw, heading, smooth(unit(progress / .14)));
+  const yaw = turnToward(departureTurn, trip.to.yaw, settling);
+  const swimming = smooth(unit((z - shorelineZ(x) + 1) / 2.3));
+  const effort = THREE.MathUtils.lerp(trip.from.effort, .68 * (1 - swimming), smooth(unit(progress / .14)));
+  // Match the destination gait during the final turn without rewinding multiple stride cycles.
+  const landingPhase = turnToward((trip.from.motionTime + .86 * ROAMING_TIMING.travel) * 2.15, trip.to.motionTime * 2.15, 1);
+  const motionTime = THREE.MathUtils.lerp((trip.from.motionTime + progress * ROAMING_TIMING.travel) * 2.15, landingPhase, settling) / 2.15;
+  return { x, z, yaw, effort: THREE.MathUtils.lerp(effort, trip.to.effort, settling), motionTime, swimming };
+}
+
+function roamingPlacement(resident) {
+  if (resident.trip) return travelPlacement(resident.trip, resident.travelProgress);
+  return resident.habitat === 'water' ? waterPlacement(resident.config, resident.waterTime) : beachPlacement(resident.config, resident.beachTime);
+}
+
+function shorelineCrossing(trip) {
+  let low = 0, high = 1;
+  for (let step = 0; step < 32; step += 1) {
+    const middle = (low + high) / 2;
+    const position = travelPlacement(trip, middle);
+    if ((position.z > shorelineZ(position.x)) === trip.startedInWater) low = middle;
+    else high = middle;
+  }
+  const progress = (low + high) / 2;
+  return { progress, ...travelPlacement(trip, progress) };
+}
 
 function crawlAt(time, phase) {
   const cycle = ((time * .85 + phase) % 40 + 40) % 40;
@@ -69,7 +116,7 @@ function lowestClearance(support, surfaceHeight) {
   return lowest;
 }
 
-export function createBeachResidents({ scene, models, surfaceHeight }) {
+export function createBeachResidents({ scene, models, surfaceHeight, random = Math.random }) {
   const group = new THREE.Group();
   group.name = 'Beach residents';
   const residents = RESIDENTS.flatMap((config, index) => {
@@ -101,15 +148,80 @@ export function createBeachResidents({ scene, models, surfaceHeight }) {
       bodyAnchor: { node: body ?? model, center: body ? new THREE.Vector3() : supportCenter(model, support) },
       headAnchor: head ? { node: head.node, center: supportCenter(head.node, head.support) } : null,
       carePhase: null, careProgress: 0, motionOffset: 0, heldMotionTime: null,
+      habitat: 'beach', settledFor: 0, beachTime: 0, waterTime: 0, trip: null, travelProgress: 0,
     }];
   });
   scene.add(group);
   let disposed = false;
   let lastTime = 0;
+  let roamingEnabled = false;
+  let roaming = createRoamingSchedule();
+  let roamingHistory = [];
+
+  function resetRoaming(enabled) {
+    if (disposed) return;
+    roamingEnabled = enabled;
+    roaming = createRoamingSchedule();
+    roamingHistory = [];
+    for (const resident of residents) {
+      Object.assign(resident, { carePhase: null, careProgress: 0, motionOffset: 0, heldMotionTime: null, habitat: 'beach', settledFor: 0, beachTime: 0, waterTime: 0, trip: null, travelProgress: 0 });
+    }
+    if (enabled) {
+      const swimmer = residents.find(resident => resident.root.name === 'beach-resident-2') ?? residents[0];
+      if (swimmer) swimmer.habitat = 'water';
+    }
+    update(0);
+  }
+
+  function updateRoaming(dt, visibleIds = []) {
+    if (disposed || !roamingEnabled || !Number.isFinite(dt) || dt <= 0) return [];
+    const events = [];
+    const now = roaming.elapsed + dt;
+    const emit = (type, resident, trip, at, position) => events.push({ type, id: resident.root.name, direction: trip.direction, at, x: position.x, z: position.z });
+    for (const resident of residents) {
+      if (!resident.trip) {
+        resident.settledFor += dt;
+        if (resident.habitat === 'water') resident.waterTime += dt;
+        else if (resident.heldMotionTime === null) resident.beachTime += dt;
+        continue;
+      }
+      const trip = resident.trip;
+      resident.travelProgress = unit((now - trip.at) / ROAMING_TIMING.travel);
+      if (!trip.crossed && resident.travelProgress >= trip.crossing.progress) {
+        trip.crossed = true;
+        emit('shore-cross', resident, trip, trip.at + trip.crossing.progress * ROAMING_TIMING.travel, trip.crossing);
+      }
+      if (resident.travelProgress < 1 - 1e-9) continue;
+      const arrivedAt = trip.at + ROAMING_TIMING.travel;
+      const remainder = Math.max(0, now - arrivedAt);
+      resident.habitat = trip.direction === 'to-beach' ? 'beach' : 'water';
+      resident.settledFor = remainder;
+      resident.beachTime = resident.habitat === 'beach' ? remainder : 0;
+      resident.waterTime = resident.habitat === 'water' ? remainder : 0;
+      resident.trip = null;
+      resident.travelProgress = 0;
+      emit('arrive', resident, trip, arrivedAt, trip.to);
+    }
+    const visible = new Set(visibleIds);
+    const candidates = residents.map(resident => ({ id: resident.root.name, habitat: resident.habitat, busy: resident.carePhase !== null, visible: visible.has(resident.root.name), settledFor: resident.settledFor }));
+    // Admit one departure after advancing existing trips; long frames never replay missed journeys.
+    for (const event of advanceRoamingSchedule(roaming, dt, candidates, random)) {
+      const resident = residents.find(value => value.root.name === event.id);
+      const from = roamingPlacement(resident);
+      const to = event.direction === 'to-beach' ? beachPlacement(resident.config, 0) : waterPlacement(resident.config, 0);
+      resident.trip = { direction: event.direction, at: event.at, from, to, startedInWater: from.z > shorelineZ(from.x), crossed: false };
+      resident.trip.crossing = shorelineCrossing(resident.trip);
+      resident.habitat = 'travel';
+      resident.travelProgress = 0;
+      emit('depart', resident, resident.trip, event.at, from);
+    }
+    roamingHistory = [...roamingHistory, ...events].slice(-8);
+    return events;
+  }
 
   function setPettingState(state) {
     if (disposed) return;
-    const selected = CARE_PHASES.has(state?.phase) ? residents.find(resident => resident.root.name === state.id) : null;
+    const selected = CARE_PHASES.has(state?.phase) ? residents.find(resident => resident.root.name === state.id && resident.habitat === 'beach') : null;
     for (const resident of residents) {
       const phase = resident === selected ? state.phase : null;
       const holding = phase === 'petting' || phase === 'happy';
@@ -137,8 +249,10 @@ export function createBeachResidents({ scene, models, surfaceHeight }) {
       const { config, root, pose, joints, support } = resident;
       for (const joint of joints.values()) joint.node.position.copy(joint.position);
       const crawling = config.behavior === 'crawling';
-      const motionTime = resident.heldMotionTime ?? time - resident.motionOffset;
+      const motionTime = roamingEnabled ? resident.beachTime : resident.heldMotionTime ?? time - resident.motionOffset;
       const motion = crawling ? crawlAt(motionTime, config.phase) : { distance: 0, yaw: 0, effort: 0 };
+      const placement = roamingEnabled ? roamingPlacement(resident) : null;
+      const swimming = placement?.swimming ?? 0;
       const requesting = resident.carePhase === 'requesting' ? 1 : 0;
       const petting = resident.carePhase === 'petting' ? smooth(Math.min(1, resident.careProgress / .18)) : 0;
       const happy = resident.carePhase === 'happy' ? 1 : 0;
@@ -146,23 +260,27 @@ export function createBeachResidents({ scene, models, surfaceHeight }) {
       const rub = Math.sin(resident.careProgress * Math.PI * 6) * petting;
       const wiggle = Math.sin(time * 3.8 + config.phase) * happy;
       const breath = Math.sin(time * 1.45 + config.phase);
-      const stride = motionTime * 2.15 + config.phase;
-      const effort = motion.effort * (1 - relaxed * .9);
+      const stride = (placement?.motionTime ?? motionTime) * 2.15 + config.phase;
+      const effort = (placement?.effort ?? motion.effort) * (1 - relaxed * .9);
       const pull = Math.sin(stride) * effort;
-      const x = config.x + Math.sin(config.yaw) * motion.distance;
-      const z = config.z + Math.cos(config.yaw) * motion.distance;
+      const x = placement?.x ?? config.x + Math.sin(config.yaw) * motion.distance;
+      const z = placement?.z ?? config.z + Math.cos(config.yaw) * motion.distance;
       root.position.set(x, 0, z);
-      root.rotation.y = config.yaw + motion.yaw;
+      root.rotation.y = placement?.yaw ?? config.yaw + motion.yaw;
       // Local +Y is the seal's long axis; this pitch lays it along the beach, with a small shoulder lift.
       pose.rotation.set(1.48 + pull * .025 - requesting * .015 - relaxed * .018, config.roll + breath * .008 + petting * .035 + happy * .04 + wiggle * .018, 0);
+      pose.rotation.x = THREE.MathUtils.lerp(pose.rotation.x, 1.52 + Math.sin(time * 1.3 + config.phase) * .014, swimming);
+      pose.rotation.y *= 1 - swimming;
       pose.scale.set(1 + breath * (.009 + relaxed * .005), 1 + pull * .018, 1 + breath * (.018 + relaxed * .009));
       resident.headPitch = -1.38 + Math.sin(time * .63 + config.phase) * .035 - pull * .025 - requesting * .065 - petting * .045 - happy * .07 + rub * .02;
+      resident.headPitch = THREE.MathUtils.lerp(resident.headPitch, -1.24 + Math.sin(time * 1.1 + config.phase) * .025, swimming);
       rotateJoint(joints, 'Head', resident.headPitch, Math.sin(time * .31 + config.phase) * .12 * (1 - relaxed * .65) + rub * .045, -config.roll * .18 + relaxed * .04 + wiggle * .022);
       rotateJoint(joints, 'Jaw', (.006 + Math.max(0, breath) * .008) * (1 - relaxed * .8));
       rotateJoint(joints, 'Flipper_L', -.48 + pull * .16 + relaxed * .08 + wiggle * .045, -.17 - Math.max(0, config.roll) * 1.6, -.24 + Math.cos(stride) * effort * .18 + relaxed * .045);
       rotateJoint(joints, 'Flipper_R', -.48 - pull * .16 + relaxed * .08 - wiggle * .045, .17 + Math.max(0, -config.roll) * 1.6, .24 + Math.cos(stride) * effort * .18 - relaxed * .045);
-      rotateJoint(joints, 'RearFlipper_L', -1.9, -.13 + Math.sin(stride + .7) * (.018 + effort * .09), -.06);
-      rotateJoint(joints, 'RearFlipper_R', -1.9, .13 + Math.sin(stride - .7) * (.018 + effort * .09), .06);
+      const swimKick = swimming * Math.sin(time * 2.4 + config.phase) * .08;
+      rotateJoint(joints, 'RearFlipper_L', -1.9 + swimming * .12 + swimKick, -.13 + Math.sin(stride + .7) * (.018 + effort * .09), -.06);
+      rotateJoint(joints, 'RearFlipper_R', -1.9 + swimming * .12 - swimKick, .13 + Math.sin(stride - .7) * (.018 + effort * .09), .06);
       for (const name of ['RearFlipper_L', 'RearFlipper_R']) {
         const fin = joints.get(name);
         if (fin) {
@@ -183,6 +301,10 @@ export function createBeachResidents({ scene, models, surfaceHeight }) {
       root.updateMatrixWorld(true);
       const clearance = lowestClearance(support, surfaceHeight);
       root.position.y = Number.isFinite(clearance) ? -clearance + .012 : surfaceHeight(x, z) + .6;
+      if (swimming > 0) {
+        const floatingY = -lowestClearance(support, () => -.7 + Math.sin(time * 1.4 + config.phase) * .025);
+        root.position.y += Math.max(0, floatingY - root.position.y) * swimming;
+      }
       root.updateMatrixWorld(true);
       for (const name of CONTACT_JOINTS) {
         const joint = joints.get(name);
@@ -203,10 +325,16 @@ export function createBeachResidents({ scene, models, surfaceHeight }) {
   return {
     update,
     setPettingState,
+    startRoaming() { resetRoaming(true); },
+    stopRoaming() { resetRoaming(false); },
+    updateRoaming,
+    roamingSnapshot() {
+      return Object.freeze({ enabled: roamingEnabled && !disposed, elapsed: roaming.elapsed, nextAt: roaming.nextAt, started: roaming.started, activeId: residents.find(resident => resident.trip)?.root.name ?? null, lastDepartureAt: roaming.lastDepartureAt, history: Object.freeze(roamingHistory.map(event => Object.freeze({ ...event }))) });
+    },
     interactionTargets() {
       if (disposed) return [];
       group.updateWorldMatrix(true, true);
-      return residents.map(({ config, root, bodyAnchor, headAnchor }) => {
+      return residents.filter(resident => resident.habitat === 'beach').map(({ config, root, bodyAnchor, headAnchor }) => {
         const position = bodyAnchor.node.localToWorld(bodyAnchor.center.clone());
         const headPosition = headAnchor ? headAnchor.node.localToWorld(headAnchor.center.clone()) : position.clone();
         const scale = root.getWorldScale(new THREE.Vector3());
@@ -214,7 +342,7 @@ export function createBeachResidents({ scene, models, surfaceHeight }) {
       });
     },
     snapshot() {
-      return Object.freeze(disposed ? [] : residents.map(({ config, root, pose, headPitch, carePhase }) => Object.freeze({
+      return Object.freeze(disposed ? [] : residents.map(({ config, root, pose, headPitch, carePhase, habitat, trip, travelProgress, settledFor }) => Object.freeze({
         id: root.name,
         variant: config.variant,
         behavior: config.behavior,
@@ -224,6 +352,10 @@ export function createBeachResidents({ scene, models, surfaceHeight }) {
         bodyPitch: pose.rotation.x,
         headPitch,
         carePhase,
+        habitat,
+        travelDirection: trip?.direction ?? null,
+        travelProgress,
+        settledFor,
       })));
     },
     dispose() {

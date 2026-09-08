@@ -6,6 +6,7 @@ import { Effects } from './effects.js';
 import { GameAudio } from './audio.js';
 import { createBeachResidents } from './beach-residents.js';
 import { createPetting } from './petting.js';
+import { createRoamingFeedback } from './roaming-feedback.js';
 import { createUI, readStored, storeValue } from './ui.js';
 import { computeThrow, trajectoryPoint, createVisitor, advanceVisitor, feedVisitor, findCatch, pickSpawn, STATE_DURATIONS } from './logic.js';
 
@@ -20,6 +21,7 @@ audio.setMuted(muted);
 const models = new Map();
 let beachResidents;
 let petting;
+let roamingFeedback;
 let manifest = [];
 let mode = 'relax';
 let status = 'intro';
@@ -52,6 +54,7 @@ const ui = createUI({
   onModal: (open, kind) => {
     cancelGesture();
     petting?.setPaused(open);
+    if (open) roamingFeedback?.hide();
     if (open) { paused = true; audio.setPaused(status !== 'results'); }
     else {
       paused = false;
@@ -138,6 +141,8 @@ function disposeFish(fish) {
 function clearGame() {
   cancelGesture();
   petting?.stop();
+  beachResidents?.stopRoaming();
+  roamingFeedback?.reset();
   actors.forEach(removeActor);
   actors = [];
   projectiles.forEach(item => { scene.remove(item.mesh); disposeFish(item.mesh); });
@@ -161,6 +166,7 @@ async function startGame(selectedMode = mode) {
   elapsed = 0; spawnTime = 2.4; score = 0; throwCount = 0; combo = 0; bestCombo = 0; lastThrowTime = -10;
   ui.setPlaying(true, mode);
   ui.stats(0, mode === 'challenge' ? 120 : 0, 0);
+  beachResidents?.startRoaming();
   petting?.start();
   audio.setPaused(false);
   const soundReady = audio.unlock();
@@ -184,6 +190,8 @@ function finish() {
   status = 'results';
   cancelGesture();
   petting?.stop();
+  beachResidents?.stopRoaming();
+  roamingFeedback?.reset();
   audio.celebrate();
   ui.results({ score, throws: throwCount, bestCombo });
 }
@@ -407,10 +415,14 @@ function frame(now) {
   previousTime = now;
   const dt = paused ? 0 : realDt;
   worldTime += dt;
+  if (!paused && status === 'playing' && beachResidents) {
+    roamingFeedback.events(beachResidents.updateRoaming(activeDt, roamingFeedback.visibleIds()));
+  }
   petting?.update(dt);
   if (!paused) {
     world.update(worldTime);
     beachResidents?.update(worldTime);
+    roamingFeedback?.update(dt, status === 'playing');
     if (status === 'playing') {
       elapsed += activeDt;
       spawnTime -= activeDt;
@@ -455,6 +467,7 @@ async function load() {
     ui.setModels(manifest);
     beachResidents = createBeachResidents({ scene, models, surfaceHeight: world.beach.heightAt });
     beachResidents.update(worldTime);
+    roamingFeedback = createRoamingFeedback({ residents: beachResidents, camera, manifest, effects, audio });
     petting = createPetting({
       residents: beachResidents, camera, container, manifest,
       onBeginDrag: cancelGesture,
@@ -475,5 +488,5 @@ load();
 
 // A read-only snapshot supports browser verification without bypassing real input.
 window.__sealBay = Object.freeze({
-  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: models.size, audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, beachSeals: beachResidents?.snapshot() || [], petting: petting?.snapshot() || null, activeHearts: effects.items.filter(item => item.type === 'heart' && item.mesh.visible).length, seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
+  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: models.size, audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, beachSeals: beachResidents?.snapshot() || [], roaming: beachResidents?.roamingSnapshot() || null, petting: petting?.snapshot() || null, activeHearts: effects.items.filter(item => item.type === 'heart' && item.mesh.visible).length, seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
 });

@@ -1,0 +1,5 @@
+.roaming-label{z-index:1}
+.roaming-label .seal-bubble{font-size:10px;background:#eef5dc;border-color:#ffffef;color:#527566;padding:6px 10px;box-shadow:0 3px 12px #31584713}
+.roaming-label .seal-bubble:after{background:#eef5dc}
+.roaming-label.below-seal .seal-bubble:after{top:-4px;bottom:auto}
+@media(max-width:760px){.roaming-label .seal-bubble{font-size:9px;padding:5px 8px}}

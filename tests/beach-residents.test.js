@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createBeachResidents } from '../src/beach-residents.js';
+import { beachHeight, shorelineZ } from '../src/beach.js';
 
 const variants = ['harbor-pup', 'harbor-adult', 'harp-pup', 'harp-adult', 'grey-juvenile', 'grey-adult', 'ringed-adult', 'weddell-elder'];
 const near = (actual, expected, epsilon = 1e-8) => assert.ok(Math.abs(actual - expected) < epsilon, `${actual} != ${expected}`);
 
-function fixture({ lowNeck = false } = {}) {
+function fixture({ lowNeck = false, terrainHeight = null, random = () => .5 } = {}) {
   const scene = new THREE.Scene();
   const existing = new THREE.Object3D();
   scene.add(existing);
@@ -36,8 +37,8 @@ function fixture({ lowNeck = false } = {}) {
     }
     return [variant, model];
   }));
-  const surfaceHeight = (x, z) => .4 + .05 * x + .08 * z + .03 * Math.sin(z * .7);
-  const residents = createBeachResidents({ scene, models, surfaceHeight });
+  const surfaceHeight = terrainHeight ?? ((x, z) => .4 + .05 * x + .08 * z + .03 * Math.sin(z * .7));
+  const residents = createBeachResidents({ scene, models, surfaceHeight, random });
   return { scene, models, residents, surfaceHeight, existing };
 }
 
@@ -359,6 +360,216 @@ test('care poses keep both the torso and low neck clear of sloped sand', () => {
         if (name === 'Plump seamless body') near(clearance, .012);
       }
     }
+  }
+  residents.dispose();
+});
+
+test('roaming starts the same harbor adult in nearshore water and stopping restores the original beach', () => {
+  const { residents, scene } = fixture({ terrainHeight: beachHeight });
+  const initial = residents.snapshot();
+  const roots = initial.map(seal => scene.getObjectByName(seal.id));
+  assert.equal(residents.roamingSnapshot().enabled, false);
+  assert.ok(initial.every(seal => seal.habitat === 'beach'));
+  residents.startRoaming();
+  const water = residents.snapshot().filter(seal => seal.habitat === 'water');
+  assert.equal(water.length, 1);
+  assert.equal(water[0].id, 'beach-resident-2');
+  near(water[0].x, .3);
+  near(water[0].z, -10.95);
+  assert.equal(residents.interactionTargets().length, 4);
+  assert.equal(residents.roamingSnapshot().nextAt, 15);
+  for (const root of roots) assert.equal(scene.getObjectByName(root.name), root);
+  residents.stopRoaming();
+  assert.deepEqual(residents.snapshot(), initial);
+  assert.equal(residents.interactionTargets().length, 5);
+  residents.dispose();
+});
+
+test('roaming keeps every identity through both directions and returns shore crossing events', () => {
+  const { residents, scene } = fixture({ terrainHeight: beachHeight, random: () => 0 });
+  const roots = residents.snapshot().map(seal => scene.getObjectByName(seal.id));
+  const ids = roots.map(root => root.name);
+  residents.startRoaming();
+  const first = residents.updateRoaming(15, ids);
+  residents.update(15);
+  assert.deepEqual(first.map(event => [event.type, event.id, event.direction]), [['depart', 'beach-resident-2', 'to-beach']]);
+  assert.equal(residents.snapshot().find(seal => seal.id === 'beach-resident-2').habitat, 'travel');
+  const incoming = residents.updateRoaming(12, ids);
+  residents.update(27);
+  assert.deepEqual(incoming.map(event => event.type), ['shore-cross', 'arrive']);
+  assert.ok(residents.snapshot().every(seal => seal.habitat === 'beach'));
+  assert.equal(residents.interactionTargets().length, 5);
+  const untilNext = residents.roamingSnapshot().nextAt - 27;
+  const outgoing = residents.updateRoaming(untilNext, ids);
+  residents.update(27 + untilNext);
+  assert.equal(outgoing.length, 1);
+  assert.equal(outgoing[0].direction, 'to-water');
+  assert.equal(residents.interactionTargets().length, 4);
+  const ending = residents.updateRoaming(12, ids);
+  residents.update(39 + untilNext);
+  assert.deepEqual(ending.map(event => event.type), ['shore-cross', 'arrive']);
+  assert.equal(residents.snapshot().filter(seal => seal.habitat === 'water').length, 1);
+  assert.equal(residents.roamingSnapshot().started, 2);
+  for (const root of roots) assert.equal(scene.getObjectByName(root.name), root);
+  for (const event of [...first, ...incoming, ...outgoing, ...ending]) {
+    assert.ok(Number.isFinite(event.at) && Number.isFinite(event.x) && Number.isFinite(event.z));
+    if (event.type === 'shore-cross') near(event.z, shorelineZ(event.x), 1e-6);
+  }
+  residents.dispose();
+});
+
+test('travel paths and height are continuous across departure, shoreline, arrival, and resumed crawling', () => {
+  const { residents } = fixture({ terrainHeight: beachHeight, random: () => 0 });
+  const ids = residents.snapshot().map(seal => seal.id);
+  residents.startRoaming();
+  let previous = residents.snapshot();
+  const events = [];
+  for (let frame = 1; frame <= 750; frame += 1) {
+    const time = frame / 10;
+    events.push(...residents.updateRoaming(.1, ids));
+    residents.update(time);
+    const current = residents.snapshot();
+    assert.equal(current.filter(seal => seal.habitat === 'travel').length <= 1, true);
+    for (const seal of current) {
+      const before = previous.find(value => value.id === seal.id);
+      assert.ok(Math.hypot(seal.x - before.x, seal.z - before.z) < .25, `${seal.id} horizontal jump at ${time}`);
+      assert.ok(Math.abs(seal.y - before.y) < .14, `${seal.id} height jump at ${time}: ${seal.y - before.y}`);
+    }
+    previous = current;
+  }
+  assert.equal(events.filter(event => event.type === 'arrive').length, 2);
+  residents.dispose();
+});
+
+test('hidden and busy residents cannot start a trip and water or traveling seals cannot receive care', () => {
+  const { residents } = fixture({ terrainHeight: beachHeight, random: () => 0 });
+  const ids = residents.snapshot().map(seal => seal.id);
+  residents.startRoaming();
+  assert.deepEqual(residents.updateRoaming(20, [ids[0]]), []);
+  assert.equal(residents.roamingSnapshot().started, 0);
+  residents.setPettingState({ id: ids[1], phase: 'petting', progress: .5 });
+  assert.ok(residents.snapshot().every(seal => seal.carePhase === null));
+  residents.updateRoaming(.1, ids);
+  residents.setPettingState({ id: ids[1], phase: 'requesting', progress: 0 });
+  assert.ok(residents.snapshot().every(seal => seal.carePhase === null));
+  residents.updateRoaming(12, ids);
+  residents.setPettingState({ id: ids[0], phase: 'requesting', progress: 0 });
+  const next = residents.roamingSnapshot().nextAt;
+  assert.deepEqual(residents.updateRoaming(next - residents.roamingSnapshot().elapsed + 1, [ids[0]]), []);
+  assert.equal(residents.roamingSnapshot().started, 1);
+  residents.setPettingState(null);
+  const departed = residents.updateRoaming(.1, [ids[0]]);
+  assert.equal(departed[0].id, ids[0]);
+  assert.equal(departed[0].direction, 'to-water');
+  residents.dispose();
+});
+
+test('roaming pause freezes its full state and restart clears care, travel, clocks, and history', () => {
+  const { residents, scene } = fixture({ terrainHeight: beachHeight });
+  const ids = residents.snapshot().map(seal => seal.id);
+  residents.startRoaming();
+  residents.updateRoaming(18, ids);
+  residents.update(18);
+  const snapshot = residents.snapshot();
+  const roaming = residents.roamingSnapshot();
+  const pose = transforms(scene);
+  for (const dt of [0, -1, NaN, Infinity]) {
+    assert.deepEqual(residents.updateRoaming(dt, ids), []);
+    residents.update(18);
+    assert.deepEqual(residents.snapshot(), snapshot);
+    assert.deepEqual(residents.roamingSnapshot(), roaming);
+    assert.deepEqual(transforms(scene), pose);
+  }
+  assert.throws(() => { roaming.history.push({}); }, TypeError);
+  residents.setPettingState({ id: ids[0], phase: 'happy', progress: .5 });
+  residents.startRoaming();
+  assert.ok(residents.snapshot().every(seal => seal.carePhase === null && seal.travelDirection === null));
+  assert.equal(residents.roamingSnapshot().elapsed, 0);
+  assert.deepEqual(residents.roamingSnapshot().history, []);
+  const restarted = residents.snapshot();
+  const fresh = fixture({ terrainHeight: beachHeight });
+  fresh.residents.startRoaming();
+  assert.deepEqual(restarted, fresh.residents.snapshot());
+  fresh.residents.dispose();
+  residents.dispose();
+  assert.deepEqual(residents.updateRoaming(20, ids), []);
+});
+
+test('nearshore swimming stays separate from the feeding bay and preserves shared resources', () => {
+  const { residents, models } = fixture({ terrainHeight: beachHeight });
+  const baselines = new Map([...models].map(([variant, model]) => [variant, transforms(model)]));
+  residents.startRoaming();
+  for (let time = 1; time <= 150; time += 1) {
+    residents.updateRoaming(1, []);
+    residents.update(time);
+    const water = residents.snapshot().find(seal => seal.habitat === 'water');
+    assert.ok(water.z <= -10 && water.z >= shorelineZ(water.x) + 2);
+    assert.ok(Math.abs(water.x - .3) < .3);
+  }
+  for (const [variant, model] of models) {
+    assert.deepEqual(transforms(model), baselines.get(variant));
+    assert.equal(model.getObjectByName('Plump seamless body').geometry.boundingBox, null);
+  }
+  residents.dispose();
+});
+
+test('a long roaming update starts at most one journey with zero progress instead of replaying missed trips', () => {
+  const { residents } = fixture({ terrainHeight: beachHeight, random: () => 0 });
+  const ids = residents.snapshot().map(seal => seal.id);
+  residents.startRoaming();
+  for (let frame = 1; frame <= 3; frame += 1) {
+    const events = residents.updateRoaming(100, ids);
+    residents.update(frame * .08);
+    assert.equal(events.filter(event => event.type === 'depart').length, 1);
+    assert.equal(residents.roamingSnapshot().started, frame);
+    const traveler = residents.snapshot().find(seal => seal.habitat === 'travel');
+    near(traveler.travelProgress, 0);
+    assert.equal(residents.roamingSnapshot().lastDepartureAt, frame * 100);
+  }
+  residents.dispose();
+});
+
+test('roaming belly geometry remains supported throughout the slope crossing', () => {
+  const { residents, scene } = fixture({ terrainHeight: beachHeight, random: () => 0 });
+  const ids = residents.snapshot().map(seal => seal.id);
+  const vertex = new THREE.Vector3();
+  residents.startRoaming();
+  residents.updateRoaming(15, ids);
+  for (let frame = 0; frame <= 48; frame += 1) {
+    if (frame) residents.updateRoaming(.25, ids);
+    residents.update(15 + frame * .25);
+    const seal = residents.snapshot().find(value => value.id === 'beach-resident-2');
+    const body = scene.getObjectByName(seal.id).getObjectByName('Plump seamless body');
+    const positions = body.geometry.getAttribute('position');
+    let clearance = Infinity;
+    for (let index = 0; index < positions.count; index += 1) {
+      vertex.fromBufferAttribute(positions, index).applyMatrix4(body.matrixWorld);
+      clearance = Math.min(clearance, vertex.y - beachHeight(vertex.x, vertex.z));
+    }
+    assert.ok(clearance >= .0119, `torso penetrates slope by ${clearance}`);
+    if (seal.z < shorelineZ(seal.x) - 1) near(clearance, .012);
+  }
+  residents.dispose();
+});
+
+test('the final travel pose joins both habitats without a body or flipper rotation pop', () => {
+  const { residents, scene } = fixture({ terrainHeight: beachHeight, random: () => 0 });
+  const ids = residents.snapshot().map(seal => seal.id);
+  residents.startRoaming();
+  residents.updateRoaming(15, ids);
+  for (const direction of ['to-beach', 'to-water']) {
+    if (direction === 'to-water') residents.updateRoaming(residents.roamingSnapshot().nextAt - residents.roamingSnapshot().elapsed, ids);
+    const id = residents.roamingSnapshot().activeId;
+    const root = scene.getObjectByName(id);
+    residents.updateRoaming(12 - 1e-6, ids);
+    residents.update(30);
+    const rotations = new Map();
+    root.traverse(node => rotations.set(node.uuid, node.quaternion.clone()));
+    const before = root.position.clone();
+    residents.updateRoaming(1e-6, ids);
+    residents.update(30);
+    assert.ok(root.position.distanceTo(before) < 1e-5, `${direction} position at arrival`);
+    root.traverse(node => assert.ok(node.quaternion.angleTo(rotations.get(node.uuid)) < 1e-5, `${direction} ${node.name} rotates on arrival`));
   }
   residents.dispose();
 });

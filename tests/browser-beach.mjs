@@ -26,7 +26,8 @@ try {
     const after = (await snapshot()).beachSeals;
     const moved = after.filter((seal, i) => Math.hypot(seal.x - before[i].x, seal.z - before[i].z) > .02);
     assert.ok(moved.length >= 1, 'A crawling seal actually moves across the sand');
-    assert.ok(after.every(seal => seal.y > 0 && seal.z < -14), 'Residents remain on the rear beach');
+    assert.ok(after.every(seal => ['beach', 'water', 'travel'].includes(seal.habitat)), 'Every resident has a valid beach, water or travel habitat');
+    assert.ok(after.filter(seal => seal.habitat === 'beach').every(seal => seal.y > 0 && seal.z < -14), 'Settled beach residents remain on the dry rear beach');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.screenshot({ path: `output/${device}-beach-final.png` });
     await page.locator('#pause-button').click();
