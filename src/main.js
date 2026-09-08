@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWorld, createFish } from './world.js';
 import { Effects } from './effects.js';
 import { GameAudio } from './audio.js';
+import { createBeachResidents } from './beach-residents.js';
 import { createUI, readStored, storeValue } from './ui.js';
 import { computeThrow, trajectoryPoint, createVisitor, advanceVisitor, feedVisitor, findCatch, pickSpawn, STATE_DURATIONS } from './logic.js';
 
@@ -16,6 +17,7 @@ const audio = new GameAudio();
 let muted = readStored('muted', false);
 audio.setMuted(muted);
 const models = new Map();
+let beachResidents;
 let manifest = [];
 let mode = 'relax';
 let status = 'intro';
@@ -142,7 +144,7 @@ function demoBay() {
   clearGame();
   if (!manifest.length) return;
   const positions = world.isPortrait
-    ? [{ x: -1.8, z: -6.5 }, { x: 2.1, z: -7.5 }, { x: 3, z: -14 }, { x: -2.5, z: -13.5 }]
+    ? [{ x: -1.8, z: -4.5 }, { x: 2.1, z: -5.5 }, { x: 3, z: -10.8 }, { x: -2.5, z: -10 }]
     : [{ x: 2.4, z: 2 }, { x: 5.1, z: -2.5 }, { x: -.3, z: -4.3 }, { x: 2.7, z: -9.1 }];
   [2, 0, 7, 6].forEach((index, i) => spawn(manifest[index], positions[i], true));
 }
@@ -400,6 +402,7 @@ function frame(now) {
   worldTime += dt;
   if (!paused) {
     world.update(worldTime);
+    beachResidents?.update(worldTime);
     if (status === 'playing') {
       elapsed += activeDt;
       spawnTime -= activeDt;
@@ -442,6 +445,8 @@ async function load() {
       ui.progress(++loaded, manifest.length);
     }));
     ui.setModels(manifest);
+    beachResidents = createBeachResidents({ scene, models, surfaceHeight: world.beach.heightAt });
+    beachResidents.update(worldTime);
     demoBay();
     ui.ready();
   } catch (error) {
@@ -453,5 +458,5 @@ load();
 
 // A read-only snapshot supports browser verification without bypassing real input.
 window.__sealBay = Object.freeze({
-  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: models.size, audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
+  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: models.size, audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, beachSeals: beachResidents?.snapshot() || [], seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
 });

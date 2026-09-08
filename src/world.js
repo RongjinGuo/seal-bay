@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { createBeach, SHORELINE_GLSL } from './beach.js';
 
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 function material(color, options = {}) {
@@ -95,6 +96,7 @@ export function createWorld(container) {
       uniform vec3 uLight;
       varying vec3 vWorld;
       varying vec3 vNormal;
+      ${SHORELINE_GLSL}
       float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
       float noise(vec2 p){vec2 i=floor(p), f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+1.),f.x),f.y);}
       void main() {
@@ -102,6 +104,9 @@ export function createWorld(container) {
         float n=noise(uv*.22+uTime*.025);
         vec3 shallow=vec3(.09,.40,.34), deep=vec3(.038,.24,.235);
         vec3 color=mix(deep,shallow,clamp(.68+n*.5+vWorld.z*.01,0.,1.));
+        float shoreDistance = uv.y - shoreZ(uv.x);
+        float shallows = 1. - smoothstep(.0, 5.5, shoreDistance);
+        color=mix(color,vec3(.28,.49,.36),shallows*.54);
         vec3 viewDir=normalize(uCamera-vWorld);
         float fresnel=pow(1.-max(dot(viewDir,vNormal),0.),3.);
         color=mix(color,vec3(.51,.74,.65),fresnel*.58);
@@ -119,10 +124,10 @@ export function createWorld(container) {
   }));
   water.name = 'BayWater';
   scene.add(water);
+  const beach = createBeach(scene);
 
   const sand = material('#d4c4a0');
   const stoneColors = ['#b6b7a0', '#babaaa', '#c4bda6', '#a2ada0', '#d4cbb6'];
-  const grassMat = material('#94a977');
   function rock(x, y, z, sx, sy, sz, color, detail = 2) {
     const geo = new THREE.IcosahedronGeometry(1, detail);
     const p = geo.attributes.position;
@@ -140,20 +145,15 @@ export function createWorld(container) {
     const x = -48 + i * 8;
     rock(x, -.5, -49 - random() * 10, 9 + random() * 5, 2 + random() * 4, 5 + random() * 5, ['#94afa0', '#a3b9a5', '#8da999'][i % 3], 3);
   }
-  rock(-18, -.5, -13, 9.2, 2.2, 9.5, '#ccc4a8', 3);
-  rock(-18.5, .25, -16, 8.5, 2.4, 8, '#9aaa7b', 3);
+  rock(-27, -.5, -20, 9.2, 2.2, 9.5, '#ccc4a8', 3);
+  rock(-27.5, .25, -24, 8.5, 2.4, 8, '#9aaa7b', 3);
   for (let i = 0; i < 13; i++) {
     const z = -16 + i * 1.8;
-    rock(-12 - random() * 6, .25 + random() * .55, z, 1.8 + random() * 1.6, .8 + random(), 1.4 + random() * 1.5);
+    rock(-19 - random() * 6, .25 + random() * .55, z, 1.8 + random() * 1.6, .8 + random(), 1.4 + random() * 1.5);
   }
-  rock(16, -.3, -15, 7.3, 1.2, 6, '#d3c8aa', 3);
-  rock(17, .5, -18, 6.5, 2.5, 6, '#8eaa7e', 3);
-  for (let i = 0; i < 8; i++) rock(11.6 + random() * 6, random() * .7, -7.5 - random() * 13, 1.3 + random() * 2, .8 + random() * 1.3, 1.4 + random());
-  for (let i = 0; i < 30; i++) {
-    const x = -15 - random() * 9, z = -11 - random() * 13;
-    const stem = mesh(new THREE.ConeGeometry(.10, .6 + random() * .7, 4), grassMat, scene, [x, 1.8, z]);
-    stem.rotation.z = (random() - .5) * .5;
-  }
+  rock(24, -.3, -21, 7.3, 1.2, 6, '#d3c8aa', 3);
+  rock(25, .5, -25, 6.5, 2.5, 6, '#8eaa7e', 3);
+  for (let i = 0; i < 8; i++) rock(16 + random() * 6, random() * .7, -9.5 - random() * 13, 1.3 + random() * 2, .8 + random() * 1.3, 1.4 + random());
   const lighthouse = new THREE.Group();
   lighthouse.position.set(-14.1, 1.1, -26.8);
   lighthouse.scale.setScalar(.8);
@@ -292,6 +292,7 @@ export function createWorld(container) {
   resize();
   function update(time) {
     water.material.uniforms.uTime.value = time;
+    beach.update(time);
     birds.forEach((bird, i) => {
       bird.position.x += Math.sin(time * .12 + i) * .002;
       bird.position.y = 8 + i * .43 + Math.sin(time * .7 + i) * .15;
@@ -299,5 +300,5 @@ export function createWorld(container) {
     });
     ambientRipples.forEach(({ ring, phase }) => { ring.material.opacity = .075 + Math.sin(time * .7 + phase) * .05; });
   }
-  return { renderer, scene, camera, water, bucket, resize, update, get isPortrait() { return isPortrait; } };
+  return { renderer, scene, camera, water, beach, bucket, resize, update, get isPortrait() { return isPortrait; } };
 }
