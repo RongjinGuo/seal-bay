@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#dceee8" />
+    <meta name="description" content="来海豹湾，用一条小鱼，交一个圆滚滚的朋友。可以用手指滑动投喂的 3D 海豹小游戏。" />
+    <title>海豹湾 · Seal Bay</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='20' fill='%23e7efe6'/%3E%3Cellipse cx='32' cy='35' rx='23' ry='19' fill='%2393aaa8'/%3E%3Ccircle cx='23' cy='30' r='3' fill='%232c4946'/%3E%3Ccircle cx='41' cy='30' r='3' fill='%232c4946'/%3E%3Cellipse cx='32' cy='38' rx='5' ry='3' fill='%232c4946'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="game" aria-label="海豹湾三维投喂场景"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <header class="header">
+      <a class="brand" href="#" aria-label="海豹湾首页" id="home-link">
+        <svg class="brand-mark" viewBox="0 0 56 56" fill="none" aria-hidden="true"><path d="M7 37c3-3 5-4 8-4-1-14 4-23 14-23s16 9 15 23c3 0 6 2 7 5-7 8-34 10-44-1Z" fill="currentColor"/><ellipse cx="23" cy="26" rx="2" ry="2.5" fill="#fffaf0"/><ellipse cx="35" cy="26" rx="2" ry="2.5" fill="#fffaf0"/><path d="m26 32 3 2 3-2M29 34v3m-9-3-8-2m8 6-9 1m27-5 8-2m-8 6 9 1" stroke="#fffaf0" stroke-width="1.5" stroke-linecap="round"/><path d="M9 47c6 3 11-3 17 0s12-3 20 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span><strong>海豹湾<span class="brand-dot">.</span></strong><small>SEAL BAY</small></span>
+      </a>
+      <div class="session-stats" id="session-stats" hidden>
+        <div><span class="stat-label">今日投喂</span><strong id="score">0</strong><span class="stat-unit">条</span></div>
+        <span class="stat-divider"></span>
+        <div><span class="stat-label" id="time-label">海湾时光</span><strong id="timer">00:00</strong></div>
+      </div>
+      <div class="header-actions">
+        <span class="weather"><i></i> 晴 · 适合交朋友</span>
+        <button class="icon-button" id="sound-button" aria-label="开启声音" title="开启声音"><span data-icon="sound-off"></span></button>
+        <button class="icon-button" id="pause-button" aria-label="暂停游戏" title="暂停游戏" hidden><span data-icon="pause"></span></button>
+        <button class="icon-button" id="help-button" aria-label="玩法说明" title="玩法说明"><span data-icon="help"></span></button>
+      </div>
+    </header>
+
+    <main class="intro" id="intro">
+      <div class="eyebrow"><span></span> A LITTLE FISH. A LITTLE JOY.</div>
+      <h1>把小鱼送出去，<br />把快乐<span class="hand-drawn">喂饱。<svg viewBox="0 0 170 12" preserveAspectRatio="none"><path d="M3 8C38 1 101 2 166 7M14 10c43-4 92-2 134 0"/></svg></span></h1>
+      <p class="intro-copy">海风刚好，小家伙们也刚好饿了。<br />来，用一条小鱼，交一个圆滚滚的朋友。</p>
+      <div class="mode-switch" aria-label="选择游戏模式">
+        <button class="mode active" data-mode="relax" aria-pressed="true"><span data-icon="sun"></span>悠闲投喂<small>慢慢来，就很好</small></button>
+        <button class="mode" data-mode="challenge" aria-pressed="false"><span data-icon="timer"></span>两分钟挑战<small>看看能喂饱几只</small></button>
+      </div>
+      <button class="primary-button" id="start-button" disabled><span id="start-text">小海豹正在游来</span><span data-icon="arrow-right"></span></button>
+      <div class="loading-detail" id="loading-detail"><span class="loading-dot"></span> 正在准备海湾 <span id="loading-percent">0%</span></div>
+      <div class="intro-foot"><span data-icon="gesture"></span> 手指或鼠标向上划，就能扔出小鱼</div>
+    </main>
+
+    <aside class="visitors-panel" id="visitors-panel">
+      <div class="panel-eyebrow">BAY RESIDENTS <span>08</span></div>
+      <button class="guide-link" id="guide-button"><span>认识海湾居民</span><span data-icon="arrow-up-right"></span></button>
+      <div class="visitor-portraits" id="visitor-portraits"></div>
+      <p>每一只，都有自己的小脾气。</p>
+    </aside>
+
+    <div id="seal-labels" class="seal-labels" aria-hidden="true"></div>
+    <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+    <div id="combo" class="combo" hidden><span>好默契！</span><strong>2</strong><small>连续投喂</small></div>
+
+    <div class="feeding-hud" id="feeding-hud" hidden>
+      <div class="gesture-hint" id="gesture-hint"><span data-icon="gesture"></span><span>从下往上，朝它轻轻一划<small>划得越快，小鱼飞得越远</small></span></div>
+      <div class="power-control" id="power-control"><span>轻轻抛</span><div class="power-track"><div id="power-fill"></div></div><span>抛远些</span></div>
+      <div class="bucket-caption"><span class="fish-token" data-icon="fish"></span><span>今日鲜鱼<small>无限供应 · 快乐也是</small></span><span class="infinity">∞</span></div>
+    </div>
+    <footer class="footer"><span>一点海风，一点小确幸。</span><button id="credits-button">关于这片海湾 <span>↗</span></button></footer>
+
+    <dialog id="modal" class="modal"><button class="modal-close icon-button" id="modal-close" aria-label="关闭弹窗"><span data-icon="close"></span></button><div id="modal-content"></div></dialog>
+    <div id="fatal" class="fatal" hidden><h1>海湾暂时没能打开</h1><p id="fatal-message"></p><button onclick="location.reload()" class="primary-button">重新打开</button></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

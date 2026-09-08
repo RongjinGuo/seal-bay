@@ -1,0 +1,1 @@
+Fonts provided by Google Fonts. Noto Serif SC and DM Sans are licensed under the SIL Open Font License 1.1. These subsets cover the game interface. Sources: https://fonts.google.com/noto/specimen/Noto+Serif+SC and https://fonts.google.com/specimen/DM+Sans .

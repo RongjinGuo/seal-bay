@@ -1,0 +1,226 @@
+[
+  {
+    "id": "harbor-pup",
+    "bytes": 1880144,
+    "drawCalls": 20,
+    "bounds": {
+      "min": [
+        -0.9375515282154083,
+        -0.7304607927799225,
+        -1.2820000052452087
+      ],
+      "max": [
+        0.9375515282154083,
+        1.9699999690055847,
+        0.788940005004406
+      ]
+    },
+    "requiredPivots": [
+      "Eye_L",
+      "Eye_R",
+      "Flipper_L",
+      "Flipper_R",
+      "Head",
+      "Jaw",
+      "RearFlipper_L",
+      "RearFlipper_R"
+    ],
+    "embeddedTextures": 2
+  },
+  {
+    "id": "harbor-adult",
+    "bytes": 1850520,
+    "drawCalls": 20,
+    "bounds": {
+      "min": [
+        -0.9375515282154083,
+        -0.7699999809265137,
+        -1.2820000052452087
+      ],
+      "max": [
+        0.9375515282154083,
+        1.9581999778747559,
+        0.7938399836421013
+      ]
+    },
+    "requiredPivots": [
+      "Eye_L",
+      "Eye_R",
+      "Flipper_L",
+      "Flipper_R",
+      "Head",
+      "Jaw",
+      "RearFlipper_L",
+      "RearFlipper_R"
+    ],
+    "embeddedTextures": 2
+  },
+  {
+    "id": "harp-pup",
+    "bytes": 1857864,
+    "drawCalls": 20,
+    "bounds": {
+      "min": [
+        -0.9375515282154083,
+        -0.7304607927799225,
+        -1.2820000052452087
+      ],
+      "max": [
+        0.9375515282154083,
+        1.9999999403953552,
+        0.7976000234484673
+      ]
+    },
+    "requiredPivots": [
+      "Eye_L",
+      "Eye_R",
+      "Flipper_L",
+      "Flipper_R",
+      "Head",
+      "Jaw",
+      "RearFlipper_L",
+      "RearFlipper_R"
+    ],
+    "embeddedTextures": 2
+  },
+  {
+    "id": "harp-adult",
+    "bytes": 1799544,
+    "drawCalls": 19,
+    "bounds": {
+      "min": [
+        -0.9375515282154083,
+        -0.7699999809265137,
+        -1.2820000052452087
+      ],
+      "max": [
+        0.9375515282154083,
+        1.978200078010559,
+        0.7938399836421013
+      ]
+    },
+    "requiredPivots": [
+      "Eye_L",
+      "Eye_R",
+      "Flipper_L",
+      "Flipper_R",
+      "Head",
+      "Jaw",
+      "RearFlipper_L",
+      "RearFlipper_R"
+    ],
+    "embeddedTextures": 2
+  },
+  {
+    "id": "grey-juvenile",
+    "bytes": 1905420,
+    "drawCalls": 20,
+    "bounds": {
+      "min": [
+        -0.9375515282154083,
+        -0.7304607927799225,
+        -1.2820000052452087
+      ],
+      "max": [
+        0.9375515282154083,
+        1.9799999594688416,
+        0.8573800250887871
+      ]
+    },
+    "requiredPivots": [
+      "Eye_L",
+      "Eye_R",
+      "Flipper_L",
+      "Flipper_R",
+      "Head",
+      "Jaw",
+      "RearFlipper_L",
+      "RearFlipper_R"
+    ],
+    "embeddedTextures": 2
+  },
+  {
+    "id": "grey-adult",
+    "bytes": 1926936,
+    "drawCalls": 20,
+    "bounds": {
+      "min": [
+        -0.9375515282154083,
+        -0.8299999833106995,
+        -1.2820000052452087
+      ],
+      "max": [
+        0.9375515282154083,
+        1.957599937915802,
+        0.9359000250697136
+      ]
+    },
+    "requiredPivots": [
+      "Eye_L",
+      "Eye_R",
+      "Flipper_L",
+      "Flipper_R",
+      "Head",
+      "Jaw",
+      "RearFlipper_L",
+      "RearFlipper_R"
+    ],
+    "embeddedTextures": 2
+  },
+  {
+    "id": "ringed-adult",
+    "bytes": 1861820,
+    "drawCalls": 20,
+    "bounds": {
+      "min": [
+        -0.9375515282154083,
+        -0.7304607927799225,
+        -1.2820000052452087
+      ],
+      "max": [
+        0.9375515282154083,
+        1.9681999683380127,
+        0.7774400040507317
+      ]
+    },
+    "requiredPivots": [
+      "Eye_L",
+      "Eye_R",
+      "Flipper_L",
+      "Flipper_R",
+      "Head",
+      "Jaw",
+      "RearFlipper_L",
+      "RearFlipper_R"
+    ],
+    "embeddedTextures": 2
+  },
+  {
+    "id": "weddell-elder",
+    "bytes": 2017584,
+    "drawCalls": 20,
+    "bounds": {
+      "min": [
+        -0.9375515282154083,
+        -0.800000011920929,
+        -1.2820000052452087
+      ],
+      "max": [
+        0.9375515282154083,
+        1.9475999474525452,
+        0.8424000069499016
+      ]
+    },
+    "requiredPivots": [
+      "Eye_L",
+      "Eye_R",
+      "Flipper_L",
+      "Flipper_R",
+      "Head",
+      "Jaw",
+      "RearFlipper_L",
+      "RearFlipper_R"
+    ],
+    "embeddedTextures": 2
+  }
+]

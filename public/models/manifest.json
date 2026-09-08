@@ -1,0 +1,84 @@
+{
+  "seals": [
+    {
+      "id": "harbor-pup",
+      "name": "团团",
+      "species": "港海豹",
+      "age": "幼崽",
+      "description": "刚开始探索海湾的小幼崽。浅褐色的绒毛上，已经长出了细碎斑点。",
+      "color": "#b9afa0",
+      "file": "/models/seal-harbor-pup.glb",
+      "portrait": "/models/portrait-harbor-pup.png"
+    },
+    {
+      "id": "harbor-adult",
+      "name": "芝麻",
+      "species": "港海豹",
+      "age": "成体",
+      "description": "沉稳的海湾常客。圆脑袋与斑驳的灰褐毛色，是港海豹的标志。",
+      "color": "#867e71",
+      "file": "/models/seal-harbor-adult.glb",
+      "portrait": "/models/portrait-harbor-adult.png"
+    },
+    {
+      "id": "harp-pup",
+      "name": "糯米",
+      "species": "竖琴海豹",
+      "age": "白衣幼崽",
+      "description": "仍穿着奶白色幼毛的白衣宝宝，脸圆圆的，最喜欢把鼻子凑近食物。",
+      "color": "#eee9d7",
+      "file": "/models/seal-harp-pup.glb",
+      "portrait": "/models/portrait-harp-pup.png"
+    },
+    {
+      "id": "harp-adult",
+      "name": "月牙",
+      "species": "竖琴海豹",
+      "age": "成体",
+      "description": "银灰色身体与深色面罩相映。背部弯曲的暗纹，让人想起一架竖琴。",
+      "color": "#c1c8c5",
+      "file": "/models/seal-harp-adult.glb",
+      "portrait": "/models/portrait-harp-adult.png"
+    },
+    {
+      "id": "grey-juvenile",
+      "name": "石头",
+      "species": "灰海豹",
+      "age": "少年",
+      "description": "好奇的灰海豹少年。吻部开始变长，银灰色皮毛还带着年轻的柔和感。",
+      "color": "#adaea9",
+      "file": "/models/seal-grey-juvenile.glb",
+      "portrait": "/models/portrait-grey-juvenile.png"
+    },
+    {
+      "id": "grey-adult",
+      "name": "礁岩",
+      "species": "灰海豹",
+      "age": "成体",
+      "description": "家族里最厚实的一位。修长隆起的鼻梁与深灰斑纹，勾勒出成熟灰海豹的轮廓。",
+      "color": "#6d736d",
+      "file": "/models/seal-grey-adult.glb",
+      "portrait": "/models/portrait-grey-adult.png"
+    },
+    {
+      "id": "ringed-adult",
+      "name": "涟漪",
+      "species": "环斑海豹",
+      "age": "成体",
+      "description": "小巧灵活的环斑海豹。深色外衣上散落着浅色环纹，像水面一圈圈涟漪。",
+      "color": "#889a9c",
+      "file": "/models/seal-ringed-adult.glb",
+      "portrait": "/models/portrait-ringed-adult.png"
+    },
+    {
+      "id": "weddell-elder",
+      "name": "阿沧",
+      "species": "威德尔海豹",
+      "age": "长者",
+      "description": "慢悠悠的海湾长者。宽阔的脑袋、银白眉毛和斑驳腹部，藏着许多海冰的故事。",
+      "color": "#8c9690",
+      "file": "/models/seal-weddell-elder.glb",
+      "portrait": "/models/portrait-weddell-elder.png"
+    }
+  ]
+}
