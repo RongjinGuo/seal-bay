@@ -12,7 +12,7 @@
 - [x] Implement and test a pure speech scheduler for occasional dialogue, gaps, visitor lifetime, pause, state transitions and reset.
 - [x] Integrate speech with visitor labels, quieter arrival names and the game lifecycle.
 - [x] Verify real dialogue timing on desktop and mobile, inspect front and prone eye views, and re-run feeding, audio, petting and roaming checks.
-- [ ] Refresh the local preview, publish to GitHub Pages and verify the published assets and behavior.
+- [x] Refresh the local preview, publish to GitHub Pages and verify the published assets and behavior.
 
 ## Verification
 
@@ -22,4 +22,4 @@
 - All eight GLBs, portraits, studio previews and the editable Blender scene are rebuilt. Front and prone views are inspected under the actual Three.js lighting. Pivots, non-eye geometry, neutral bounds and primitive counts remain unchanged; every texture is embedded or packed.
 - Model and portrait requests carry a new revision query so returning players fetch the revised eyes from GitHub Pages.
 - The selected recording still has SHA256 `68a48bffd0d8c0fe0f71ad06ba8775500a82f7976c19e437340ab85dd8d2863a`.
-- Local preview refreshed at http://localhost:4173/. Public deployment verification follows publication.
+- Local preview refreshed at http://localhost:4173/. GitHub Pages deployment `34244777692` succeeded for feature commit `cf7e3c1`. The public entry loads `index-DUZwmKxi.js`; hashes of all eight published GLBs and eight portraits match the local files. A live browser loads all eight revised models, observes one natural speech at 14.12 active seconds, and reports no page or console errors.
