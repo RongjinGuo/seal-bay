@@ -14,6 +14,7 @@ export function createUI(callbacks) {
   const modal = $('modal');
   let mode = 'relax';
   let manifest = [];
+  let companions = [];
   let seen = new Set(readStored('seen', []));
   let noticeTimeout;
   let modalKind = '';
@@ -44,18 +45,21 @@ export function createUI(callbacks) {
     $('restart-button').onclick = () => { close(); callbacks.onStart(mode); };
     $('back-home-button').onclick = () => { close(); callbacks.onHome(); };
   }
-  $('help-button').addEventListener('click', () => open(`<div class="eyebrow">A SMALL GUIDE TO HAPPINESS</div><h2>一划，交个朋友。</h2><div class="help-steps"><div class="help-step"><span>01</span><div><strong>看见冒头的小家伙了吗？</strong><p>海豹会在不同的位置探出头。挑一只，从画面下半部开始向上划。</p></div></div><div class="help-step"><span>02</span><div><strong>方向对准它，速度决定远近。</strong><p>向左上或右上划可以调整方向。近处轻轻划，远处快快划；松手，小鱼就飞出去。虚线和圆圈会提示落点。</p></div></div><div class="help-step"><span>03</span><div><strong>听，它在催饭呢。</strong><p>等得久了会发出真实的海豹叫声，再等下去就会气鼓鼓地潜走。喂到嘴边，它会开心得拍小鳍。</p></div></div><div class="help-step"><span>04</span><div><strong>沙滩上的朋友，也想被摸摸。</strong><p>看到头顶的工具提示，把右侧的软毛刷或摸摸手套拖到那只海豹身上，松手就会轻轻抚摸。它会眯起眼睛，送你小爱心。海豹也会自己游上岸、爬下水：开局十几秒就能看到第一次，之后会隔久一些再换地方。</p></div></div></div><p>电脑也能玩：按住鼠标左键，从下往上划。空格或 Esc 暂停，M 切换声音。</p>`, 'help'));
+  $('help-button').addEventListener('click', () => open(`<div class="eyebrow">A SMALL GUIDE TO HAPPINESS</div><h2>一划，交个朋友。</h2><div class="help-steps"><div class="help-step"><span>01</span><div><strong>看见冒头的小家伙了吗？</strong><p>海豹会在不同的位置探出头。挑一只，从画面下半部开始向上划。</p></div></div><div class="help-step"><span>02</span><div><strong>方向对准它，速度决定远近。</strong><p>向左上或右上划可以调整方向。近处轻轻划，远处快快划；松手，小鱼就飞出去。虚线和圆圈会提示落点。</p></div></div><div class="help-step"><span>03</span><div><strong>听，它在催饭呢。</strong><p>等得久了会发出真实的海豹叫声，再等下去就会气鼓鼓地潜走。喂到嘴边，它会开心得拍小鳍。</p></div></div><div class="help-step"><span>04</span><div><strong>沙滩上的朋友，也想被摸摸。</strong><p>看到头顶的工具提示，把右侧的软毛刷或摸摸手套拖到有提示的小伙伴身上，松手就会轻轻抚摸。沙滩上的小水獭豆豆也会提出摸摸需求。它会眯起眼睛，送你小爱心。海豹也会自己游上岸、爬下水：开局十几秒就能看到第一次，之后会隔久一些再换地方。</p></div></div></div><p>电脑也能玩：按住鼠标左键，从下往上划。空格或 Esc 暂停，M 切换声音。</p>`, 'help'));
   function guide() {
-    open(`<div class="eyebrow">MEET THE BAY RESIDENTS · ${seen.size} / 8</div><h2>八张脸，八种可爱。</h2><p>有刚认识世界的小幼崽，也有慢悠悠的老朋友。成功投喂，就会留下你们的相遇记录。</p><div class="guide-grid">${manifest.map(seal => `<article class="guide-card"><img src="${seal.portrait}" alt="${seal.species}${seal.age} ${seal.name}"/><span class="met">${seen.has(seal.id) ? '已交朋友' : '等你投喂'}</span><h3>${seal.name}</h3><p>${seal.species} · ${seal.age}</p><p>${seal.description}</p></article>`).join('')}</div>`, 'guide');
+    const companionCards = companions.map(friend => `<article class="companion-card"><img src="${friend.portrait}" alt="${friend.species}${friend.age} ${friend.name}"/><span class="met">${friend.id === 'river-otter' ? '想被摸摸' : '抱贝壳漂水'}</span><h3>${friend.name}</h3><p>${friend.species} · ${friend.age}</p><p>${friend.description}</p></article>`).join('');
+    open(`<div class="eyebrow">MEET THE BAY RESIDENTS · ${seen.size} / 8</div><h2>海湾里的小伙伴。</h2><p>八位海豹等你投喂，海獭和水獭也来作伴。成功投喂海豹，就会留下你们的相遇记录。</p><div class="guide-grid">${manifest.map(seal => `<article class="guide-card"><img src="${seal.portrait}" alt="${seal.species}${seal.age} ${seal.name}"/><span class="met">${seen.has(seal.id) ? '已交朋友' : '等你投喂'}</span><h3>${seal.name}</h3><p>${seal.species} · ${seal.age}</p><p>${seal.description}</p></article>`).join('')}</div><section class="companion-guide"><div class="eyebrow">A FEW MORE LITTLE FRIENDS</div><h3>抱着贝壳，慢慢过一天。</h3><p>海獭喜欢仰躺漂水，水獭则用四只小爪子在岸边走走。豆豆提出摸摸需求时，也可以把对应工具拖到它身上。</p><div class="guide-grid companion-grid">${companionCards}</div></section>`, 'guide');
   }
   $('guide-button').addEventListener('click', guide);
-  $('credits-button').addEventListener('click', () => open(`<div class="eyebrow">MADE WITH A LITTLE CARE</div><h2>关于这片小海湾。</h2><p>一个关于等待、分享和圆滚滚朋友的小游戏。海豹拥有独立的脸型、年龄与斑纹，用真实海豹的身体特征，做了一点可爱的想象。</p><ul class="credits-list"><li>三维海豹：Blender 原创模型，8 种外观。</li><li>海湾与交互：Three.js、Web Audio。</li><li>海豹叫声：烟台东炮台海豹湾斑海豹现场原声，视频第 15–17 秒。</li><li>录音来源：海豹大叔直播，Bilibili「白糖蘸年糕」转载视频。不同海豹外观共享这段原声。</li></ul><p>这是想象中的共同海湾。现实中，这些海豹分布在不同海域；白衣幼崽也并不以游泳捕鱼为日常。</p><a class="credits-link" href="https://www.bilibili.com/video/BV1cV411X7GW/?t=15" target="_blank" rel="noopener noreferrer">查看烟台海豹叫声原视频 ↗</a>`, 'credits'));
+  $('credits-button').addEventListener('click', () => open(`<div class="eyebrow">MADE WITH A LITTLE CARE</div><h2>关于这片小海湾。</h2><p>一个关于等待、分享和圆滚滚朋友的小游戏。海豹拥有独立的脸型、年龄与斑纹，用真实海豹的身体特征，做了一点可爱的想象。</p><ul class="credits-list"><li>三维小伙伴：Blender 原创模型，8 种海豹与 3 位海獭、水獭朋友。</li><li>海湾与交互：Three.js、Web Audio。</li><li>海豹叫声：烟台东炮台海豹湾斑海豹现场原声，视频第 15–17 秒。</li><li>录音来源：海豹大叔直播，Bilibili「白糖蘸年糕」转载视频。不同海豹外观共享这段原声。</li></ul><p>这是想象中的共同海湾。现实中，这些海豹分布在不同海域；白衣幼崽也并不以游泳捕鱼为日常。</p><a class="credits-link" href="https://www.bilibili.com/video/BV1cV411X7GW/?t=15" target="_blank" rel="noopener noreferrer">查看烟台海豹叫声原视频 ↗</a>`, 'credits'));
   return {
     pause,
     get modalOpen() { return modal.open; },
-    setModels(data) {
+    setModels(data, friends = []) {
       manifest = data;
-      $('visitor-portraits').innerHTML = [data[2], data[0], data[6]].map(seal => `<span class="portrait"><img src="${seal.portrait}" alt="${seal.name}" /></span>`).join('') + '<span class="portrait portrait-more">+5</span>';
+      companions = friends;
+      $('resident-total').textContent = String(data.length + friends.length).padStart(2, '0');
+      $('visitor-portraits').innerHTML = [data[2], data[0], data[6]].map(seal => `<span class="portrait"><img src="${seal.portrait}" alt="${seal.name}" /></span>`).join('') + `<span class="portrait portrait-more">+${data.length + friends.length - 3}</span>`;
     },
     progress(count, total) { $('loading-percent').textContent = `${Math.round(count / total * 100)}%`; },
     ready() { $('start-button').disabled = false; $('start-text').textContent = '去喂小海豹'; $('loading-detail').hidden = true; },

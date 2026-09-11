@@ -13,9 +13,10 @@ const roster = state => state.beachSeals.map(({ id, variant }) => ({ id, variant
 const eventFor = (state, type, id, direction) => state.roaming.history.find(event => event.type === type && event.id === id && event.direction === direction);
 
 function assertEligibility(state) {
+  const river = (state.otters || []).filter(otter => otter.id === 'otter-river' && otter.habitat === 'beach');
   assert.deepEqual(state.petting.targets.map(target => target.id).sort(),
-    state.beachSeals.filter(seal => seal.habitat === 'beach').map(seal => seal.id).sort(),
-    'Only settled beach residents are eligible for petting');
+    [...state.beachSeals.filter(seal => seal.habitat === 'beach'), ...river].map(resident => resident.id).sort(),
+    'Only settled beach seals and the river otter are eligible for petting');
 }
 
 function assertInitial(state) {
@@ -37,7 +38,8 @@ function assertInitial(state) {
 async function waitForEligibility(page) {
   await page.waitForFunction(() => {
     const state = window.__sealBay.snapshot();
-    const beach = state.beachSeals.filter(seal => seal.habitat === 'beach').map(seal => seal.id).sort();
+    const river = (state.otters || []).filter(otter => otter.id === 'otter-river' && otter.habitat === 'beach');
+    const beach = [...state.beachSeals.filter(seal => seal.habitat === 'beach'), ...river].map(resident => resident.id).sort();
     return JSON.stringify(beach) === JSON.stringify(state.petting.targets.map(target => target.id).sort());
   });
 }

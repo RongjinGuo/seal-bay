@@ -5,6 +5,7 @@ import { createWorld, createFish } from './world.js';
 import { Effects } from './effects.js';
 import { GameAudio } from './audio.js';
 import { createBeachResidents } from './beach-residents.js';
+import { createOtterResidents } from './otter-residents.js';
 import { createPetting } from './petting.js';
 import { createRoamingFeedback } from './roaming-feedback.js';
 import { createSpeechState, advanceSpeech } from './speech-logic.js';
@@ -20,10 +21,13 @@ const audio = new GameAudio();
 let muted = readStored('muted', false);
 audio.setMuted(muted);
 const models = new Map();
+const otterModels = new Map();
 let beachResidents;
+let otterResidents;
 let petting;
 let roamingFeedback;
 let manifest = [];
+let otterManifest = [];
 let mode = 'relax';
 let status = 'intro';
 let paused = false;
@@ -145,6 +149,7 @@ function disposeFish(fish) {
 function clearGame() {
   cancelGesture();
   petting?.stop();
+  otterResidents?.reset();
   beachResidents?.stopRoaming();
   roamingFeedback?.reset();
   speech = createSpeechState();
@@ -434,6 +439,7 @@ function frame(now) {
   if (!paused) {
     world.update(worldTime);
     beachResidents?.update(worldTime);
+    otterResidents?.update(worldTime);
     roamingFeedback?.update(dt, status === 'playing');
     if (status === 'playing') {
       elapsed += activeDt;
@@ -467,24 +473,40 @@ requestAnimationFrame(frame);
 async function load() {
   try {
     // Pages caches public files; a model revision refreshes returning players' eyes and portraits.
-    const modelUrl = path => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}?v=natural-eyes-1`;
-    const response = await fetch(modelUrl('models/manifest.json'));
+    const modelUrl = (path, revision = 'natural-eyes-1') => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}?v=${revision}`;
+    const [response, otterResponse] = await Promise.all([
+      fetch(modelUrl('models/manifest.json')),
+      fetch(modelUrl('otters/manifest.json', 'otter-friends-1')),
+    ]);
     if (!response.ok) throw new Error(`Model manifest: ${response.status}`);
+    if (!otterResponse.ok) throw new Error(`Otter manifest: ${otterResponse.status}`);
     const data = await response.json();
+    const otterData = await otterResponse.json();
     manifest = data.seals.map(meta => ({ ...meta, portrait: modelUrl(meta.portrait) }));
+    otterManifest = otterData.otters.map(meta => ({ ...meta, portrait: modelUrl(meta.portrait, 'otter-friends-1') }));
     const loader = new GLTFLoader();
     let loaded = 0;
-    await Promise.all(manifest.map(async meta => {
-      const gltf = await loader.loadAsync(modelUrl(meta.file));
-      models.set(meta.id, gltf.scene);
-      ui.progress(++loaded, manifest.length);
-    }));
-    ui.setModels(manifest);
+    const loadModel = async (meta, collection, revision) => {
+      const gltf = await loader.loadAsync(modelUrl(meta.file, revision));
+      collection.set(meta.id, gltf.scene);
+      ui.progress(++loaded, manifest.length + otterManifest.length);
+    };
+    await Promise.all([
+      ...manifest.map(meta => loadModel(meta, models, 'natural-eyes-1')),
+      ...otterManifest.map(meta => loadModel(meta, otterModels, 'otter-friends-1')),
+    ]);
+    ui.setModels(manifest, otterManifest);
     beachResidents = createBeachResidents({ scene, models, surfaceHeight: world.beach.heightAt });
     beachResidents.update(worldTime);
+    otterResidents = createOtterResidents({ scene, models: otterModels, surfaceHeight: world.beach.heightAt });
+    otterResidents.update(worldTime);
     roamingFeedback = createRoamingFeedback({ residents: beachResidents, camera, manifest, effects, audio });
     petting = createPetting({
-      residents: beachResidents, camera, container, manifest,
+      residents: {
+        interactionTargets: () => [...beachResidents.interactionTargets(), ...otterResidents.interactionTargets()],
+        setPettingState: state => { beachResidents.setPettingState(state); otterResidents.setPettingState(state); },
+      },
+      camera, container, manifest: [...manifest, ...otterManifest],
       onBeginDrag: cancelGesture,
       onUnlock: () => audio.unlock(),
       onComplete: ({ position }) => {
@@ -496,12 +518,12 @@ async function load() {
     ui.ready();
   } catch (error) {
     console.error(error);
-    fatal('海豹模型没能完整加载。请检查本地游戏服务是否仍在运行，然后重新打开。');
+    fatal('海湾小伙伴没能完整加载。请检查网络或游戏服务，然后重新打开。');
   }
 }
 load();
 
 // A read-only snapshot supports browser verification without bypassing real input.
 window.__sealBay = Object.freeze({
-  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: models.size, audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, speech: { ...speech, active: speech.active ? { ...speech.active } : null, spokenIds: [...speech.spokenIds] }, beachSeals: beachResidents?.snapshot() || [], roaming: beachResidents?.roamingSnapshot() || null, petting: petting?.snapshot() || null, activeHearts: effects.items.filter(item => item.type === 'heart' && item.mesh.visible).length, seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
+  snapshot: () => ({ status, paused, mode, elapsed, score, throws: throwCount, combo, bestCombo, loaded: petting ? models.size : 0, otterLoaded: petting ? otterModels.size : 0, otters: otterResidents?.snapshot() || [], audio: audio.status, projectiles: projectiles.length, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, speech: { ...speech, active: speech.active ? { ...speech.active } : null, spokenIds: [...speech.spokenIds] }, beachSeals: beachResidents?.snapshot() || [], roaming: beachResidents?.roamingSnapshot() || null, petting: petting?.snapshot() || null, activeHearts: effects.items.filter(item => item.type === 'heart' && item.mesh.visible).length, seals: actors.map(({ visitor, meta, root }) => ({ id: visitor.id, variant: meta.id, name: meta.name, state: visitor.state, stateTime: visitor.stateTime, x: visitor.x, z: visitor.z, size: visitor.size, fed: visitor.fed, visibleY: root.position.y })) }),
 });

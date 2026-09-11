@@ -106,7 +106,7 @@ export function createPetting({ residents, camera, container, manifest, onBeginD
     const result = offerPettingTool(state, target?.id, held.toolId);
     if (!result.accepted) {
       if (state.request && result.reason !== 'unavailable') {
-        toolNotice = result.reason === 'wrong-tool' ? `换成${toolFor(state.request.toolId).name}试试` : '拖到有摸摸提示的海豹';
+        toolNotice = result.reason === 'wrong-tool' ? `换成${toolFor(state.request.toolId).name}试试` : '拖到有摸摸提示的小伙伴';
         toolNoticeTime = 2.4;
       }
     } else {
@@ -141,7 +141,7 @@ export function createPetting({ residents, camera, container, manifest, onBeginD
       button.disabled = !active || state.phase !== 'requesting';
       button.classList.toggle('requested', active && state.phase === 'requesting' && button.dataset.pettingTool === request?.toolId);
     }
-    const hint = toolNotice || (state.phase === 'requesting' ? '拖到有提示的小海豹身上' : state.phase === 'petting' ? '正在轻轻摸摸…' : state.phase === 'happy' ? '收获一颗小小的心' : '等小家伙想被摸摸');
+    const hint = toolNotice || (state.phase === 'requesting' ? '拖到有提示的小伙伴身上' : state.phase === 'petting' ? '正在轻轻摸摸…' : state.phase === 'happy' ? '收获一颗小小的心' : '等小家伙想被摸摸');
     if (instruction.textContent !== hint) instruction.textContent = hint;
     if (!active) { ghost.hidden = true; ring.hidden = true; return; }
     if (target?.visible) {

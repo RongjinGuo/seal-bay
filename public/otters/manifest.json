@@ -1,0 +1,37 @@
+{
+  "otters": [
+    {
+      "id": "sea-otter-adult",
+      "name": "贝贝",
+      "species": "海獭",
+      "age": "成体",
+      "description": "仰躺在水面上的海獭，胸前抱着一枚小贝壳。银褐色的脸颊旁，长着细细的胡须。",
+      "color": "#7d6248",
+      "habitat": "water",
+      "file": "/otters/sea-otter-adult.glb",
+      "portrait": "/otters/portrait-sea-otter-adult.png"
+    },
+    {
+      "id": "sea-otter-pup",
+      "name": "栗子",
+      "species": "海獭",
+      "age": "幼崽",
+      "description": "蓬松的栗色小海獭，圆圆的脸还带着幼崽的稚气。抱紧小贝壳，随海浪轻轻摇晃。",
+      "color": "#aa8055",
+      "habitat": "water",
+      "file": "/otters/sea-otter-pup.glb",
+      "portrait": "/otters/portrait-sea-otter-pup.png"
+    },
+    {
+      "id": "river-otter",
+      "name": "豆豆",
+      "species": "水獭",
+      "age": "少年",
+      "description": "住在岸边的好奇水獭。四只灵巧的小爪、浅色下巴和一条渐渐收细的长尾巴，让它走起路来特别轻快。",
+      "color": "#785338",
+      "habitat": "beach",
+      "file": "/otters/river-otter.glb",
+      "portrait": "/otters/portrait-river-otter.png"
+    }
+  ]
+}

@@ -59,12 +59,19 @@ npm run dev
 
 拖错工具或目标可以重新尝试。暂时没空摸摸也不会扣分，需求会过一会儿自然消失。正在请求抚摸、享受摸摸或回应爱心的居民会先完成互动再出发；只有已经在岸上安顿好的海豹会提出抚摸需求。抚摸不改变投喂分数；投喂目标仍是水里冒出的海豹。暂停时，迁移、需求计时与抚摸动作一起停止；重新开始会恢复开局位置、清空需求和爱心，也不会重复添加居民。
 
+## 海獭与水獭
+
+海湾也住进了三位新朋友：海獭贝贝、海獭幼崽栗子和水獭豆豆。两只海獭会仰躺漂在近岸水面，抱着贝壳、轻轻摆脚，偶尔揉揉脸；豆豆则用四只小爪子在沙滩边走动，甩甩长尾巴。看到豆豆头顶的工具需求，也能用同一套软毛刷和摸摸手套抚摸它，收到小爱心。图鉴里有三位新朋友的独立介绍；海豹投喂收集仍为八种。
+
 ## Blender 原始文件
 
 - `blender/seal-family.blend`：8 只海豹的可编辑 Blender 源文件。
 - `blender/build_seals.py`：可重复运行的建模、贴图、GLB 导出与肖像渲染脚本。
 - `blender/seal-family-contact-sheet.png`：造型总览。
 - `blender/README.md`：模型坐标、动画节点、导出参数。
+- `blender/otter-family.blend`：海獭与水獭的可编辑 Blender 源文件。
+- `blender/build_otters.py`：三位新朋友的建模、导出与肖像渲染脚本。
+- `public/otters/manifest.json`：海獭与水獭的独立资产清单。
 - `public/models/`：8 个 GLB、8 张肖像和居民清单；贴图嵌入 GLB。
 
 海豹源资产由 Blender 5.2.1 生成；场景水面、沙滩、海岸、灯塔、栈桥、桶和小鱼由 Three.js 实时绘制。岸上海豹复用同一组模型，每只单独控制姿势与动作。
@@ -100,8 +107,13 @@ node tests/browser-beach.mjs
 node tests/browser-petting.mjs
 node tests/browser-roaming.mjs
 node tests/browser-speech.mjs
+node tests/browser-otters.mjs
 ```
 
 通过 `SEAL_BAY_URL=http://localhost:4173` 可改测生产预览，也可运行 `npm run test:browser` 顺序执行全部浏览器检查。逻辑测试覆盖速度、方向、设备尺寸归一化、取消手势、海豹状态转换、投喂判定，以及可投达且不重叠的随机出现位置；沙滩测试覆盖岸线与投喂区域的间隔、地面支撑、休息与爬行、暂停、模型克隆和资源清理。抚摸测试覆盖需求轮换、工具匹配、超时、抚摸完成时机和爬行动作恢复。往返测试覆盖首次上岸、后续间隔、浅滩支撑、游动与爬行衔接、抵达时小鳍动作连续、抚摸避让和重开复位。浏览器验证覆盖真实鼠标与触控事件、近处与远处投喂、图鉴、暂停、重开、挑战结束、真实录音播放与静音持久化，以及桌面和手机上的沙滩居民、两种抚摸工具、错误拖放、取消手势、暂停抚摸和爱心效果。
 
 桌面与手机尺寸的验证截图保存在 `output/`。手机适配已在 Chrome 触控设备模拟中验证；尚未逐一测试实体 iPhone、Android 与不同移动 GPU。
+
+## 链接访问统计
+
+目前尚未接入游戏访问统计，不能补查此前的打开记录。GitHub 仓库 Traffic 数据只代表代码仓库的浏览量，不是 GitHub Pages 游戏链接的访问量。可选的免费统计方式与接入条件见 `docs/visitor-statistics.md`。

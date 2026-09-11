@@ -142,7 +142,7 @@ async function negativeDrops(page, pointer) {
   assert.ok(other, 'There is another distinct visible beach seal for the wrong-target check');
   await drop(page, pointer, toolId, other);
   unchangedReward(await snapshot(page), before, 'Correct tool on another seal is rejected');
-  assert.equal(await instruction.innerText(), '拖到有摸摸提示的海豹', 'Inline feedback directs a wrong-resident drop to the requesting seal');
+  assert.equal(await instruction.innerText(), '拖到有摸摸提示的小伙伴', 'Inline feedback directs a wrong-resident drop to the requesting seal');
   await fitsViewport(page, instruction, 'Wrong-resident feedback');
 
   const { width, height } = page.viewportSize();
