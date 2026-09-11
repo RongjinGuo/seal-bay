@@ -13,7 +13,7 @@
 - [x] Integrate companion loading, animation lifecycle, river-otter petting and a separate companion section in the field guide. Keep feeding species and saved completion counts intact.
 - [x] Confirm whether existing information can establish game visits. Present accurate counting options and implement only the user's selected statistics option; do not imply historical records exist.
 - [x] Verify new residents and interactions on desktop/mobile, run existing feeding/audio/petting/roaming/speech regressions, build and inspect the result.
-- [ ] Update local preview, deploy to the existing GitHub Pages URL, and verify published models and behavior.
+- [x] Update local preview, deploy to the existing GitHub Pages URL, and verify published models and behavior.
 
 ## Model Contract
 
@@ -29,4 +29,4 @@
 - All 106 logic tests pass, including 16 resident tests; production build succeeds. Close-up grooming confirms the fixed inset shoulders remain attached. Actual GLB paw, torso and tail clearance was sampled throughout a 48-second river motion cycle.
 - No game analytics exists. The optional preference question remains unanswered, so no third-party tracker is configured; repository Traffic is not presented as game visits.
 - All seven production-preview browser suites passed (40 named checks) across desktop and mobile. The initial fast-throw input timing failure passed on native-input rerun; gameplay physics was unchanged. The otter harness uses varying seeded randomness after loading so deterministic requests cannot duplicate Three.js resource UUIDs. Final screenshots show correct coats and heart feedback.
-- The local preview is refreshed. Online deployment verification follows publication.
+- The local preview is refreshed. Release `21dbdd1` deployed successfully in GitHub Actions run `34598931355`. Live mobile verification loaded all eight seals and three otters, confirmed separate 8+3 guide cards and a visible river-otter petting target, and reported no browser errors. The live entry is `index-Ba_8jR-u.js`.
